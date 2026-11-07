@@ -76,12 +76,13 @@ var XIO = (function () {
     XLSX.utils.book_append_sheet(wb, sheet(sum, [26, 9, 9, 9, 10, 11, 14, 16, 10, 12, 12, 14, 18]), 'สรุป');
     // 2) รายคน
     var pcols = ['ประเภท', 'ที่พัก', 'รหัสพนักงาน', 'ชื่อ-สกุล (ทะเบียน)', 'ชื่อ-สกุล (ระบบบุคลากร)', 'กลุ่มการจ้าง', 'ห้อง', 'จำนวนวัน', 'ยอด (บาท)', 'หัก/ไม่หัก', 'เหตุผล', 'สถานะ API', 'ข้อควรระวัง'];
-    var prow = function (p) { return [KTH[p.kind], bldOf(p.bld).name, p.payType === 'EMP' ? p.empCode : (p.cashCode || ''), p.name, p.apiName || '', p.empGroup || '', p.rooms, p.days, r2(p.amount), p.payType === 'CASH' ? 'เงินสด' : (p.include ? 'หัก' : 'ไม่หัก'), p.reason || '', { ACTIVE: 'ปฏิบัติงาน', NOT_FOUND: 'ไม่พบ/พ้นสภาพ', UNCHECKED: 'ยังไม่ตรวจ' }[p.apiStatus] || '', p.warn || '']; };
+    var prow = function (p) { return [KTH[p.kind], bldOf(p.bld).name, p.payType === 'EMP' ? p.empCode : (p.cashCode || ''), p.name, p.apiName || '', p.empGroup || '', p.rooms, p.days, r2(p.amount), p.payType === 'CASH' ? 'เงินสด' : p.payType === 'PENDING' ? 'รอรหัส (พักยอด)' : (p.include ? 'หัก' + (p.back ? ' (รวมย้อนหลัง ' + r2(p.back) + ')' : '') : 'ไม่หัก'), p.reason || '', { ACTIVE: 'ปฏิบัติงาน', NOT_FOUND: 'ไม่พบ/พ้นสภาพ', UNCHECKED: 'ยังไม่ตรวจ' }[p.apiStatus] || '', p.warn || '']; };
     var sortP = function (a, b) { return (a.kind < b.kind ? 1 : a.kind > b.kind ? -1 : 0) || BLD_ORDER(a.bld) - BLD_ORDER(b.bld) || (a.empCode < b.empCode ? -1 : 1); };
     var W13 = [8, 24, 12, 28, 28, 18, 22, 8, 11, 9, 30, 13, 26];
     XLSX.utils.book_append_sheet(wb, sheet(H.concat([pcols]).concat(d.persons.filter(function (p) { return p.payType === 'EMP' && p.include; }).sort(sortP).map(prow)), W13), 'รายคน_หักเงินเดือน');
     XLSX.utils.book_append_sheet(wb, sheet(H.concat([pcols]).concat(d.persons.filter(function (p) { return p.payType === 'EMP' && !p.include; }).sort(sortP).map(prow)), W13), 'ไม่หัก');
     XLSX.utils.book_append_sheet(wb, sheet(H.concat([pcols]).concat(d.persons.filter(function (p) { return p.payType === 'CASH'; }).sort(sortP).map(prow)), W13), 'เงินสด');
+    XLSX.utils.book_append_sheet(wb, sheet(H.concat([pcols]).concat(d.persons.filter(function (p) { return p.payType === 'PENDING'; }).sort(sortP).map(prow)), W13), 'รอรหัส (พักยอด)');
     // 3) แจ้งเตือน
     var al = H.concat([['ประเภท', 'ที่พัก', 'ห้อง', 'มิเตอร์', 'ชนิด', 'รายละเอียด', 'เลขก่อน', 'เลขหลัง', 'หน่วยใช้', 'ยอด']]);
     var AT = { ERR: 'ผิดพลาด', UNASSIGNED: 'ไม่มีผู้รับผิดชอบ', HIGH: 'ใช้สูงผิดปกติ', ZERO: 'ใช้ 0', MISS: 'ยังไม่จด' };
@@ -106,7 +107,7 @@ var XIO = (function () {
           if (!m.payers.length) { a.push(first.concat(['', '', note])); return; }
           m.payers.forEach(function (x, i) {
             var pi = d.persons.filter(function (p) { return p.kind === k && p.bld === b.id && (x.payType === 'EMP' ? p.empCode === x.empCode : p.name === x.name); })[0];
-            var how = x.payType === 'CASH' ? 'เงินสด' : (pi && pi.include ? 'หักเงินเดือน' : 'ไม่หัก' + (pi && pi.reason ? ': ' + pi.reason : ''));
+            var how = x.payType === 'CASH' ? 'เงินสด' : x.payType === 'PENDING' ? 'รอรหัส (พักยอด)' : (pi && pi.include ? 'หักเงินเดือน' : 'ไม่หัก' + (pi && pi.reason ? ': ' + pi.reason : '')) + (x.leaveDays ? ' · พักการเรียกเก็บ ' + x.leaveDays + ' วัน (' + (x.leaveWhy || '') + ')' : '');
             if (x.payType === 'EMP' && pi && pi.include) sumD += x.share;
             var r = i === 0 ? first.slice() : ['', '', '', '', '', '', '', '', '', ''];
             r[3] = x.name; r[4] = x.empCode;
@@ -296,7 +297,8 @@ var XIO = (function () {
     if (d.type === 'CHECK') return buildCheck(d);
     if (d.type === 'TEMPLATE') return buildTemplate(d);
     if (d.type === 'MASTER') return buildMaster(d);
+    if (XIO2[d.type]) return XIO2[d.type](d, { sheet: sheet, save: save, stampLine: stampLine, fileStamp: fileStamp, download: download, safeSheet: safeSheet });
     return Promise.reject(new Error('ชนิดไฟล์ไม่รู้จัก'));
   }
-  return { build: build, readTemplate: readTemplate, readHistory: readHistory, readOldFiles: readOldFiles, parseOldSheet: parseOldSheet, download: download, sheet: sheet, save: save };
+  return { printCash: function (d) { return XIO2.printCash(d, { stampLine: stampLine }); }, build: build, readTemplate: readTemplate, readHistory: readHistory, readOldFiles: readOldFiles, parseOldSheet: parseOldSheet, download: download, sheet: sheet, save: save };
 })();

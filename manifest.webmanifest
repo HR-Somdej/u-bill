@@ -1,0 +1,17 @@
+{
+  "name": "SOMDEJ U-Bill · ค่าน้ำ–ค่าไฟที่พักบุคลากร",
+  "short_name": "U-Bill",
+  "description": "จดมิเตอร์ ทะเบียนห้องพัก และรายการหักค่าน้ำ–ค่าไฟ รพ.สมเด็จพระบรมราชเทวี ณ ศรีราชา",
+  "lang": "th",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d2340",
+  "theme_color": "#0b84c6",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

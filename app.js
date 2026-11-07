@@ -1,7 +1,7 @@
 /* SOMDEJ U-Bill — app.js : แกนกลาง (เรียกหลังบ้าน · ล็อกอิน · โครงหน้า · เส้นทาง · UI กลาง)
  * เลขรุ่นต้องตรงกับ Config.gs และ version.json */
-var UB_BUILD = '2569-11-03.1';
-var UB_API_BUILD = '2569-11-03.1';
+var UB_BUILD = '2569-11-08.1';
+var UB_API_BUILD = '2569-11-08.1';
 var UB_VERSION = '1.2569';
 
 var S = { token: null, boot: null, me: null, master: null, round: null, readings: {}, route: '' };
@@ -275,32 +275,50 @@ function navItems() {
   if (canEdit()) L.push({ sec: 'งานประจำรอบ' }, { r: 'round', t: 'รอบหักเงิน', i: 'calendar' });
   if (canEdit() || hasRole('TECH')) L.push({ r: 'read', t: 'เดินจดมิเตอร์', i: 'gauge', m: 'จดมิเตอร์' });
   if (canEdit()) L.push({ r: 'desk', t: 'กรอกจากสมุด / นำเข้า', i: 'table', m: 'กรอก' }, { r: 'review', t: 'ตรวจสอบ & ส่งออก', i: 'shield', m: 'ตรวจ' });
-  if (canEdit()) L.push({ sec: 'ทะเบียน' }, { r: 'master', t: 'ห้อง · มิเตอร์ · ผู้พัก', i: 'building', m: 'ทะเบียน' });
-  if (canEdit() || hasRole('EXEC')) L.push({ sec: 'สรุปผล' }, { r: 'dash', t: 'แดชบอร์ด', i: 'chart', m: 'แดชบอร์ด' });
+  if (canEdit()) L.push({ sec: 'ทะเบียน' }, { r: 'rooms', t: 'ห้องพัก · ผู้พัก', i: 'building', m: 'ห้องพัก' }, { r: 'master', t: 'มิเตอร์ · ผู้จ่าย', i: 'gauge' }, { r: 'disputes', t: 'เรื่องแจ้งจากผู้พัก', i: 'alert', badge: (S.boot && S.boot.disputesOpen) || 0 });
+  if (canEdit() || hasRole('EXEC')) L.push({ sec: 'สรุปผล' }, { r: 'dash', t: 'แดชบอร์ดค่าน้ำ–ไฟ', i: 'chart', m: 'แดชบอร์ด' });
+  if (hasRole('EXEC') && !canEdit()) L.push({ r: 'rooms', t: 'แดชบอร์ดห้องพัก', i: 'building' });
   if (canEdit()) L.push({ sec: 'ระบบ' });
   if (canEdit()) L.push({ r: 'users', t: isHR() ? 'ผู้ใช้งาน' : 'ผู้ใช้ (หน่วยช่าง)', i: 'users' });
   if (canEdit()) L.push({ r: 'settings', t: 'ตั้งค่า · อัตรา', i: 'settings' });
   if (isHR()) L.push({ r: 'audit', t: 'ประวัติการใช้งาน', i: 'history' });
+  L.push({ sec: 'ช่วยเหลือ' }, { r: 'help', t: 'วิธีใช้ & คำถามที่พบบ่อย', i: 'info' });
   return L;
 }
 function shell(title, sub, actions) {
   var app = $('#app'), r = S.route;
   if (!$('.shell', app)) {
     app.innerHTML = '<div class="shell"><aside class="side"><div class="brand"><div class="logo">' + ic('ub') + '</div><div><b>U-Bill</b><span>ค่าน้ำ–ค่าไฟที่พักบุคลากร<br>รพ.สมเด็จฯ ณ ศรีราชา</span></div></div><nav class="nav" id="nav"></nav>' +
-      '<div class="me"><b>' + esc(S.me.name || S.me.empCode) + '</b>' + esc(S.me.rolesTh.join(' · ')) + '<div class="row"><button class="btn" id="b-pw">' + ic('key') + ' รหัสผ่าน</button><button class="btn" id="b-out">' + ic('logout') + ' ออก</button></div></div></aside>' +
-      '<main class="main"><div class="mobile-top"><div class="logo">' + ic('ub') + '</div><b>U-Bill</b><button class="btn" id="m-out">' + ic('logout') + '</button></div><div id="topbar" class="topbar"></div><div id="page"></div></main></div><nav class="bottomnav" id="bnav"></nav>';
+      '<div class="me"><b>' + esc(S.me.name || S.me.empCode) + '</b>' + esc(S.me.rolesTh.join(' · ')) + '<div class="row"><button class="btn" id="b-pw">' + ic('key') + ' รหัสผ่าน</button><button class="btn" id="b-out">' + ic('logout') + ' ออก</button></div><button class="btn block mt8 hide inst" id="b-inst">' + ic('download') + ' ติดตั้งเป็นแอป</button><div class="tiny" style="opacity:.6;margin-top:6px">รุ่น ' + UB_BUILD + '</div></div></aside>' +
+      '<main class="main"><div class="mobile-top"><div class="logo">' + ic('ub') + '</div><b>U-Bill</b><button class="btn hide inst" id="m-inst" title="ติดตั้งแอป">' + ic('download') + '</button><button class="btn" id="m-help" data-help="">?</button><button class="btn" id="m-out">' + ic('logout') + '</button></div><div id="topbar" class="topbar"></div><div id="page"></div></main></div><nav class="bottomnav" id="bnav"></nav>';
+    $$('.inst', app).forEach(function (b) { b.onclick = installApp; });
+    if (window._bip) $$('.inst').forEach(function (b) { b.classList.remove('hide'); });
     $('#b-out').onclick = function () { logout(); };
     $('#m-out').onclick = function () { confirmBox('ออกจากระบบ', 'ต้องการออกจากระบบหรือไม่', 'ออกจากระบบ').then(function (y) { if (y) logout(); }); };
     $('#b-pw').onclick = changePwDialog;
   }
-  var items = navItems();
-  $('#nav').innerHTML = items.map(function (x) { return x.sec ? '<div class="sec">' + x.sec + '</div>' : '<a href="#/' + x.r + '" class="' + (r === x.r ? 'on' : '') + '">' + ic(x.i) + '<span>' + x.t + '</span></a>'; }).join('');
+  renderNav();
+  actions = actions || '';
+  if (actions.indexOf('data-help') < 0) actions = helpBtn(r) + actions;
+  $('#m-help').dataset.help = r;
+  $('#topbar').innerHTML = '<div class="grow"><h1>' + title + '</h1>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div><div class="row noprint">' + actions + '</div>';
+  return $('#page');
+}
+function renderNav() {
+  var r = S.route, items = navItems();
+  $('#nav').innerHTML = items.map(function (x) { return x.sec ? '<div class="sec">' + x.sec + '</div>' : '<a href="#/' + x.r + '" class="' + (r === x.r ? 'on' : '') + '">' + ic(x.i) + '<span>' + x.t + '</span>' + (x.badge ? '<em class="badge">' + x.badge + '</em>' : '') + '</a>'; }).join('');
   var mob = items.filter(function (x) { return x.r && (x.m || x.r === 'round'); }).slice(0, 5);
   $('#bnav').innerHTML = mob.map(function (x) { return '<a href="#/' + x.r + '" class="' + (r === x.r ? 'on' : '') + '">' + ic(x.i) + '<span>' + (x.m || 'รอบ') + '</span></a>'; }).join('');
   $('#bnav').style.display = mob.length > 1 ? '' : 'none';
-  $('#topbar').innerHTML = '<div class="grow"><h1>' + title + '</h1>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div><div class="row noprint">' + (actions || '') + '</div>';
-  return $('#page');
 }
+/* ---------- ติดตั้งเป็นแอป (PWA) */
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window._bip = e; $$('.inst').forEach(function (b) { b.classList.remove('hide'); }); });
+window.addEventListener('appinstalled', function () { window._bip = null; $$('.inst').forEach(function (b) { b.classList.add('hide'); }); toast('ติดตั้ง U-Bill แล้ว — เปิดได้จากไอคอนบนหน้าจอ', 'ok'); });
+function installApp() {
+  if (window._bip) { window._bip.prompt(); window._bip.userChoice.then(function () { window._bip = null; }); return; }
+  modal({ title: 'ติดตั้ง U-Bill เป็นแอป', body: '<p><b>iPhone / iPad (Safari):</b> กดปุ่มแชร์ <span style="font-size:18px">⎋</span> › <b>เพิ่มไปยังหน้าจอโฮม</b></p><p><b>Android (Chrome):</b> เมนู ⋮ › <b>ติดตั้งแอป</b> หรือ <b>เพิ่มไปยังหน้าจอหลัก</b></p>', buttons: [{ label: 'ตกลง', cls: 'primary' }] });
+}
+function registerSW(file) { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register(file || 'sw.js').catch(function () { }); }
 function changePwDialog() {
   modal({ title: 'เปลี่ยนรหัสผ่าน', body: '<div class="field"><label class="f">รหัสผ่านปัจจุบัน</label><input class="inp" type="password" id="c-cur"></div><div class="field"><label class="f">รหัสผ่านใหม่</label><input class="inp" type="password" id="c-new"></div><div class="field"><label class="f">ยืนยันรหัสผ่านใหม่</label><input class="inp" type="password" id="c-new2"></div>',
     buttons: [{ label: 'ยกเลิก' }, { label: 'บันทึก', cls: 'primary', onClick: function () {
@@ -372,6 +390,7 @@ function route() {
   S.route = name;
   window.scrollTo(0, 0);
   try { (PAGES[name] || PAGES[homeRoute()])(parts.slice(1)); } catch (e) { console.error(e); errToast(e); }
+  if (window.maybeTour) maybeTour();
 }
 window.addEventListener('hashchange', route);
 
@@ -385,6 +404,8 @@ function checkVersion() {
   }).catch(function () { });
 }
 function start() {
+  if (window.UB_PORTAL) return;
+  registerSW('sw.js');
   try { S.token = localStorage.getItem('ub_token') || null; } catch (e) { }
   api('branding').then(function (b) { S.brand = b; }).catch(function () { }).then(function () {
     if (!S.token) { $('#bootsplash') && $('#bootsplash').remove(); return renderLogin(); }

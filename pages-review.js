@@ -1,5 +1,6 @@
 /* SOMDEJ U-Bill — pages-review.js : ตรวจสอบรอบ (สรุป · แจ้งเตือน · รายคน · ไม่หัก/เงินสด) และศูนย์ส่งออกไฟล์ */
 PAGES.review = function (args) {
+  /* ยอดย้อนหลัง (ผู้รอรหัสที่ได้รหัสแล้ว) แสดงในเหตุผล */
   var rid = args[0] || '', tab = args[1] || 'sum';
   var pg = shell('ตรวจสอบ & ส่งออก', 'ผลคำนวณจากหลังบ้าน (แหล่งเดียวกับไฟล์ Import HRMi)');
   pg.innerHTML = loadingHtml('กำลังคำนวณ…');
@@ -7,7 +8,7 @@ PAGES.review = function (args) {
     var ch = res[0];
     if (!ch.round) { pg.innerHTML = emptyHtml('ยังไม่มีรอบ', 'calendar'); return; }
     ch.M = ch.meters.map(function (a) { return { id: a[0], kind: a[1], bld: a[2], floor: a[3], room: a[4], label: a[5], status: a[6], prev: a[7], curr: a[8], reset: a[9], broken: a[10], usage: a[11], amount: a[12], unalloc: a[13], occDays: a[14], exempt: a[15], exemptReason: a[16], alerts: a[17], payers: a[18], note: a[19], avg: a[20], newRoom: a[21], by: a[22], at: a[23], src: a[24] }; });
-    ch.P = ch.persons.map(function (a) { return { kind: a[0], bld: a[1], empCode: a[2], name: a[3], payType: a[4], amount: a[5], include: a[6], reason: a[7], api: a[8], apiName: a[9], group: a[10], warn: a[11], rooms: a[12], ovr: a[13], days: a[14], cashCode: a[15] }; });
+    ch.P = ch.persons.map(function (a) { return { kind: a[0], bld: a[1], empCode: a[2], name: a[3], payType: a[4], amount: a[5], include: a[6], reason: a[7], api: a[8], apiName: a[9], group: a[10], warn: a[11], rooms: a[12], ovr: a[13], days: a[14], cashCode: a[15], back: a[16] || 0, rid: a[17] || '' }; });
     renderReview(pg, ch, tab);
   }).catch(function (e) { pg.innerHTML = '<div class="note danger">' + ic('alert') + esc(e.message) + '</div>'; });
 };
@@ -15,7 +16,7 @@ function renderReview(pg, ch, tab) {
   var rd = ch.round, T = ch.totals;
   var alerts = []; ch.M.forEach(function (m) { m.alerts.forEach(function (a) { alerts.push({ m: m, a: a }); }); });
   var errN = alerts.filter(function (x) { return x.a.t === 'ERR'; }).length, alN = alerts.filter(function (x) { return x.a.t !== 'MISS'; }).length;
-  var exc = ch.P.filter(function (p) { return p.payType === 'EMP' && !p.include; }), cash = ch.P.filter(function (p) { return p.payType === 'CASH'; });
+  var exc = ch.P.filter(function (p) { return p.payType === 'EMP' && !p.include; }), cash = ch.P.filter(function (p) { return p.payType === 'CASH'; }), pend = ch.P.filter(function (p) { return p.payType === 'PENDING'; });
   var warnP = ch.P.filter(function (p) { return p.payType === 'EMP' && (p.warn || p.api === 'UNCHECKED'); });
   var tabs = [['sum', 'สรุป', ''], ['alerts', 'แจ้งเตือน', alN ? '<span class="cnt ' + (errN ? 'r' : '') + '">' + alN + '</span>' : ''], ['people', 'รายคน (หักเงินเดือน)', '<span class="cnt">' + ch.P.filter(function (p) { return p.payType === 'EMP'; }).length + '</span>'],
     ['excl', 'ไม่หัก / เงินสด', '<span class="cnt">' + (exc.length + cash.length) + '</span>'], ['meters', 'รายมิเตอร์', ''], ['export', 'ส่งออกไฟล์', '']];
@@ -99,7 +100,10 @@ function renderReview(pg, ch, tab) {
     var cs = cash.reduce(function (s, p) { return s + p.amount; }, 0), es = exc.reduce(function (s, p) { return s + p.amount; }, 0);
     B.innerHTML = '<h3 style="margin:4px 0 10px">' + ic('alert') + ' ไม่หักเงินเดือน (' + exc.length + ' รายการ · ' + baht(es) + ' บาท)</h3>' + simpleTable(exc, true) +
       '<h3 style="margin:22px 0 10px">' + ic('cash') + ' ชำระเงินสด — นิสิตแพทย์/แพทย์ฝึกหัด (' + cash.length + ' รายการ · ' + baht(cs) + ' บาท)</h3>' + simpleTable(cash, false) +
-      '<p class="tiny muted mt8">รายการเหล่านี้ไม่อยู่ในไฟล์ Import HRMi · อยู่ในไฟล์ตรวจสอบ ชีท "ไม่หัก" และ "เงินสด" สำหรับตามเก็บ</p>';
+      '<div class="row mt8"><button class="btn sm" id="ex-cash">' + ic('download') + ' รายงานเงินสด (ส่งผู้เรียกเก็บ)</button></div>' +
+      '<h3 style="margin:22px 0 10px">' + ic('key') + ' รอรหัสพนักงาน — พักยอดไว้ หักย้อนหลังเมื่อได้รหัส (' + pend.length + ' รายการ · ' + baht(pend.reduce(function (s, p) { return s + p.amount; }, 0)) + ' บาท)</h3>' + simpleTable(pend, false) +
+      '<p class="tiny muted mt8">รายการเหล่านี้ไม่อยู่ในไฟล์ Import HRMi · อยู่ในไฟล์ตรวจสอบ ชีท "ไม่หัก" "เงินสด" และ "รอรหัส"</p>';
+    $('#ex-cash').onclick = function () { exportFile('CASH', this, rd.id); };
   }
   function simpleTable(L, emp) {
     if (!L.length) return emptyHtml('ไม่มีรายการ', 'check');
@@ -126,12 +130,15 @@ function exportTab(B, rd, T) {
     '<div class="row mt12"><button class="btn amber" data-x="HRMI" ' + (locked && isHR() ? '' : 'disabled') + '>' + ic('download') + ' ดาวน์โหลดชุด Import HRMi (.zip)</button></div></div>' +
     '<div class="card"><h3>' + ic('file') + ' ไฟล์ตรวจสอบ / หลักฐาน</h3><p class="small muted">สรุป · รายละเอียดรายมิเตอร์ · รายคน · ไม่หัก · เงินสด · แจ้งเตือน · สรุปแยกหอ (รูปแบบเดิมของฝ่ายอาคาร) · ส่งออกได้ทุกเวลา ' + (locked ? '' : '(<b>ฉบับร่าง</b> จนกว่าจะล็อก)') + ' · ประทับวันเวลา/ผู้ส่งออก/ฉบับที่ ทุกครั้ง</p>' +
     '<div class="row mt12"><button class="btn primary" data-x="CHECK">' + ic('download') + ' ไฟล์ตรวจสอบ (.xlsx)</button><button class="btn" data-x="TEMPLATE">' + ic('download') + ' แม่แบบจดมิเตอร์รอบนี้</button></div></div></div>' +
+    '<div class="card mt16"><h3>' + ic('cash') + ' รายงานผู้ชำระเงินสด</h3><p class="small muted">สำหรับส่งเจ้าหน้าที่ที่เกี่ยวข้องไปเรียกเก็บเงินสด (นศพ. / แพทย์ฝึกหัด ฯลฯ) · 1 คน 1 แถว รวมน้ำ+ไฟ · มีช่องวันที่ชำระ เลขใบเสร็จ ลงชื่อผู้รับเงิน · แยกแผ่นตามกลุ่ม · พิมพ์ได้</p>' +
+    '<div class="row mt12"><button class="btn amber" data-x="CASH">' + ic('download') + ' รายงานเงินสด (.xlsx)</button><button class="btn" id="ex-cashp">' + ic('printer') + ' พิมพ์ / บันทึก PDF</button></div></div>' +
     '<div class="card mt16"><h3>' + ic('history') + ' ประวัติการส่งออกของรอบนี้</h3><div id="ex-log">' + loadingHtml() + '</div></div>';
   $$('[data-x]', B).forEach(function (b) { b.onclick = function () { exportFile(b.dataset.x, b, rd.id).then(function () { loadLog(); }); }; });
+  $('#ex-cashp').onclick = function () { var btn = this; busy(btn, true); api('getExportData', { type: 'CASH', round: rd.id }).then(function (d) { busy(btn, false); XIO.printCash(d); loadLog(); }).catch(function (e) { busy(btn, false); errToast(e); }); };
   function loadLog() {
     api('listExports', { round: rd.id }).then(function (L) {
       $('#ex-log').innerHTML = L.length ? '<div class="tbl-wrap" style="max-height:300px"><table class="t"><thead><tr><th>ฉบับ</th><th>ชนิด</th><th>ไฟล์</th><th class="n">แถว</th><th class="n">ยอด</th><th>สถานะรอบ</th><th>โดย</th><th>เวลา</th></tr></thead><tbody>' +
-        L.map(function (x) { return '<tr><td>' + x.version + '</td><td>' + ({ HRMI: '<span class="tag elec">Import HRMi</span>', CHECK: '<span class="tag water">ตรวจสอบ</span>', TEMPLATE: '<span class="tag">แม่แบบ</span>', MASTER: '<span class="tag">ทะเบียน</span>' }[x.type] || x.type) + '</td><td class="small">' + esc(x.file) + '</td><td class="n">' + esc(x.rows) + '</td><td class="n">' + (x.amount ? baht(x.amount) : '') + '</td><td>' + (x.locked === 'TRUE' ? '<span class="tag ok">ล็อก</span>' : '<span class="tag">ร่าง</span>') + '</td><td>' + esc(x.by) + '</td><td>' + thDate(x.at) + '</td></tr>'; }).join('') + '</tbody></table></div>' : emptyHtml('ยังไม่มีการส่งออก', 'file');
+        L.map(function (x) { return '<tr><td>' + x.version + '</td><td>' + ({ HRMI: '<span class="tag elec">Import HRMi</span>', CHECK: '<span class="tag water">ตรวจสอบ</span>', TEMPLATE: '<span class="tag">แม่แบบ</span>', MASTER: '<span class="tag">ทะเบียน</span>', CASH: '<span class="tag elec">เงินสด</span>', ROOMS: '<span class="tag">ห้องพัก</span>' }[x.type] || x.type) + '</td><td class="small">' + esc(x.file) + '</td><td class="n">' + esc(x.rows) + '</td><td class="n">' + (x.amount ? baht(x.amount) : '') + '</td><td>' + (x.locked === 'TRUE' ? '<span class="tag ok">ล็อก</span>' : '<span class="tag">ร่าง</span>') + '</td><td>' + esc(x.by) + '</td><td>' + thDate(x.at) + '</td></tr>'; }).join('') + '</tbody></table></div>' : emptyHtml('ยังไม่มีการส่งออก', 'file');
     }).catch(function () { });
   }
   loadLog();

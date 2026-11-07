@@ -1,6 +1,6 @@
 /* SOMDEJ U-Bill — pages-admin.js : ผู้ใช้งาน · ตั้งค่า/อัตรา · นำเข้าประวัติ · ประวัติการใช้งาน */
 PAGES.users = function () {
-  var pg = shell(isHR() ? 'ผู้ใช้งาน' : 'ผู้ใช้ (หน่วยช่าง)', 'เข้าระบบแบบเดียวกับ HR Connect: ครั้งแรกใช้รหัสพนักงาน + เลขบัตรประชาชน แล้วตั้งรหัสผ่านเอง', '<button class="btn primary" id="u-add">' + ic('plus') + ' เพิ่มผู้ใช้</button>');
+  var pg = shell(isHR() ? 'ผู้ใช้งาน' : 'ผู้ใช้ (หน่วยช่าง)', 'เข้าระบบแบบเดียวกับ HR Connect: ครั้งแรกใช้รหัสพนักงาน + เลขบัตรประชาชน แล้วตั้งรหัสผ่านเอง', helpBtn('users') + '<button class="btn primary" id="u-add">' + ic('plus') + ' เพิ่มผู้ใช้</button>');
   pg.innerHTML = loadingHtml();
   $('#u-add').onclick = function () { userDialog(null); };
   api('listUsers').then(function (L) {
@@ -9,10 +9,14 @@ PAGES.users = function () {
         var canE = isHR() || u.role === 'TECH';
         return '<tr style="' + (u.active ? '' : 'opacity:.55') + '"><td>' + esc(u.empCode) + (u.main ? ' <span class="tag navy">หลัก</span>' : '') + '</td><td><b>' + esc(u.name || '(ยังไม่เคยเข้าระบบ)') + '</b></td><td>' + esc(u.roleTh) + '</td><td class="small">' + esc(u.position || '') + '<div class="muted">' + esc(u.division || '') + '</div></td>' +
           '<td>' + (u.pw === 'SET' ? '<span class="tag ok">ตั้งแล้ว</span>' : u.pw === 'TEMP' ? '<span class="tag warn">รหัสชั่วคราว</span>' : '<span class="tag">ยังไม่ตั้ง</span>') + '</td><td class="small">' + (u.lastLoginAt ? thDate(u.lastLoginAt) : '-') + '</td><td>' + (u.active ? '<span class="tag ok">ใช้งาน</span>' : '<span class="tag">ปิด</span>') + '</td>' +
-          '<td class="nowrap">' + (canE ? '<button class="btn sm" data-e="' + esc(u.empCode) + '">' + ic('edit') + '</button> ' : '') + (isHR() && u.pw && u.empCode !== S.me.empCode ? '<button class="btn sm" data-r="' + esc(u.empCode) + '">' + ic('key') + ' รีเซ็ต</button>' : '') + '</td></tr>';
+          '<td class="nowrap">' + (canE ? '<button class="btn sm" data-e="' + esc(u.empCode) + '">' + ic('edit') + '</button> ' : '') + (canE && !u.main && u.empCode !== S.me.empCode ? '<button class="btn sm ghost" data-del="' + esc(u.empCode) + '" data-n="' + esc(u.name || '') + '" title="ลบผู้ใช้ออกจากระบบ">' + ic('trash') + '</button> ' : '') + (isHR() && u.pw && u.empCode !== S.me.empCode ? '<button class="btn sm" data-r="' + esc(u.empCode) + '">' + ic('key') + ' รีเซ็ต</button>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<div class="note info mt16">' + ic('info') + '<div><b>บทบาท</b> · <b>HR</b> ทุกอย่าง (ตรวจ ล็อก ส่งออก Import HRMi ตั้งค่า) · <b>ฝ่ายอาคาร</b> ทะเบียน ย้ายเข้า/ออก จดมิเตอร์ ส่งรอบ ไฟล์ตรวจสอบ แดชบอร์ด · <b>หน่วยช่าง</b> เฉพาะหน้าเดินจดมิเตอร์ · <b>ผู้บริหาร</b> แดชบอร์ดอย่างเดียว</div></div>';
     $$('[data-e]', pg).forEach(function (b) { b.onclick = function () { userDialog(L.filter(function (u) { return u.empCode === b.dataset.e; })[0]); }; });
+    $$('[data-del]', pg).forEach(function (b) { b.onclick = function () {
+      promptBox('ลบผู้ใช้ ' + b.dataset.del + ' ' + b.dataset.n, 'เหตุผล', { html: '<div class="note warn">' + ic('alert') + '<div>ลบออกจากรายชื่อผู้ใช้และลบรหัสผ่าน (เข้าระบบไม่ได้ทันที) · ประวัติการใช้งานเดิมยังเก็บไว้ · ต้องการใช้อีกครั้งให้เพิ่มใหม่</div></div>', placeholder: 'เช่น ใส่สิทธิ์ผิด / ย้ายหน่วยงาน', ok: 'ลบผู้ใช้', cls: 'danger', required: false })
+        .then(function (why) { if (why === null) return; api('deleteUser', { empCode: b.dataset.del, reason: why }).then(function () { toast('ลบผู้ใช้แล้ว', 'ok'); route(); }).catch(errToast); });
+    }; });
     $$('[data-r]', pg).forEach(function (b) {
       b.onclick = function () {
         confirmBox('รีเซ็ตรหัสผ่าน ' + b.dataset.r, 'ระบบจะออกรหัสผ่านชั่วคราว (ใช้ได้ 72 ชม.) ให้แจ้งเจ้าตัวโดยตรง เมื่อเข้าระบบจะต้องตั้งรหัสใหม่', 'รีเซ็ต', 'warn').then(function (y) {
@@ -61,15 +65,45 @@ function renderSettings(pg, d) {
     '<div class="field"><label class="f">ลิงก์หน้าเว็บ</label><input class="inp" id="st-web" value="' + esc(s.webUrl) + '" ' + dis + '></div><div class="field"><label class="f">เบอร์ติดต่อ HR</label><input class="inp" id="st-ph" value="' + esc(s.supportPhone) + '" ' + dis + '></div>' +
     '<div class="field"><label class="f">ประกาศบนหน้าระบบ</label><input class="inp" id="st-an" value="' + esc(s.announcement) + '" ' + dis + '></div><label class="check"><input type="checkbox" id="st-mt" ' + (s.maintenance === 'TRUE' ? 'checked' : '') + ' ' + dis + '> ปิดปรับปรุง (เข้าได้เฉพาะ HR)</label>' +
     (hr ? '<div class="row mt12"><button class="btn" id="st-test">' + ic('refresh') + ' ทดสอบ SmartAPI</button><span id="st-tr" class="small"></span></div>' : '') + '</div></div>' +
+    '<div class="grid g2 mt16"><div class="card"><h3>' + ic('user') + ' หน้า "ค่าน้ำไฟของฉัน" (ผู้พัก) · การแจ้งเตือน</h3>' +
+    '<label class="check"><input type="checkbox" id="st-po" ' + (s.portalOpen !== 'FALSE' ? 'checked' : '') + ' ' + dis + '> เปิดให้ผู้พักเข้าดูยอดของตนเอง</label>' +
+    '<div class="field mt8"><label class="f">ผู้พักแจ้งยอดผิดได้ภายใน (วัน) หลังฝ่ายอาคารส่งรอบ</label><input class="inp" id="st-dd" value="' + esc(s.disputeDays) + '" ' + dis + ' style="max-width:120px"></div>' +
+    '<label class="check"><input type="checkbox" id="st-mb" ' + (s.mailBld !== 'FALSE' ? 'checked' : '') + ' ' + dis + '> อีเมลแจ้งฝ่ายอาคารทันทีเมื่อมีผู้พักแจ้ง</label>' +
+    '<div class="field mt8"><label class="f">อีเมลฝ่ายอาคาร (คั่นด้วย , · ว่าง = ใช้อีเมลของผู้ใช้บทบาทฝ่ายอาคารจาก SmartAPI)</label><input class="inp" id="st-be" value="' + esc(s.bldEmails) + '" ' + dis + '></div>' +
+    '<label class="check"><input type="checkbox" id="st-mh" ' + (s.mailHr !== 'FALSE' ? 'checked' : '') + ' ' + dis + '> ส่งสำเนาถึง HR (ปิดได้เมื่อส่งมอบให้ฝ่ายอาคารดูแลเต็มรูปแบบ)</label>' +
+    '<div class="field mt8"><label class="f">อีเมล HR ที่รับสำเนา (ว่าง = อีเมลบัญชีระบบ)</label><input class="inp" id="st-he" value="' + esc(s.hrEmail) + '" ' + dis + '></div>' +
+    '<div class="field"><label class="f">ลิงก์ HR Connect</label><input class="inp" id="st-hc" value="' + esc(s.hrcUrl) + '" ' + dis + '></div>' +
+    '<div class="small">เชื่อมบัญชี HR Connect: ' + [['sso', 'เข้าต่อจาก HR Connect'], ['db', 'อ่านฐานข้อมูล HR Connect'], ['pw', 'ตรวจรหัสผ่าน HR Connect']].map(function (x) { return (s.hrcLinked && s.hrcLinked[x[0]] ? '<span class="tag ok">✓ ' : '<span class="tag">✗ ') + x[1] + '</span>'; }).join(' ') + '<div class="tiny muted mt8">ตั้งใน Apps Script › Project Settings › Script Properties: HRC_TOKEN_SECRET · HRC_DB_ID · HRC_PW_PEPPER (คัดลอกจากโปรเจกต์ HR Connect) — ดูคู่มืออัปเดต</div></div>' +
+    '<div class="row mt12"><a class="btn sm" href="me.html" target="_blank">' + ic('link') + ' เปิดหน้า "ค่าน้ำไฟของฉัน"</a></div></div>' +
+    '<div class="card"><h3>' + ic('users') + ' ทะเบียนบุคลากร (สำหรับค้นด้วยชื่อ)</h3><p class="small muted">นำเข้าไฟล์รายชื่อบุคลากรที่ส่งออกจาก HRMi (คอลัมน์ EmpCode, FullName, PositionName, DivisionName …) เพื่อให้ฝ่ายอาคารพิมพ์ชื่อค้นหาได้ · <b>ระบบตัดคอลัมน์เลขบัตรประชาชนและข้อมูลอื่นทิ้งในเครื่องของท่าน ก่อนส่งขึ้นระบบ</b> · แนะนำนำเข้าเดือนละครั้ง</p>' +
+    '<div class="row"><label class="btn' + (hr ? '' : ' disabled') + '">' + ic('upload') + ' เลือกไฟล์รายชื่อ HRMi (.xls/.xlsx)<input type="file" id="st-sf" accept=".xls,.xlsx" class="sr" ' + dis + '></label><span id="st-si" class="small muted"></span></div><div id="st-sp" class="mt8"></div>' +
+    (hr ? '<h3 class="mt16">' + ic('shield') + ' บันทึกการเปิดดูข้อมูลส่วนบุคคล (PDPA)</h3><button class="btn sm" id="st-pl">' + ic('history') + ' ดูบันทึก</button>' : '') + '</div></div>' +
     (hr ? '<div class="stickybar row"><span class="grow"></span><button class="btn primary" id="st-save">' + ic('check') + ' บันทึกการตั้งค่า</button></div>' : '') +
     '<div class="card mt16"><div class="ch"><h3>' + ic('building') + ' ที่พัก</h3>' + (hr ? '<button class="btn sm" id="st-badd">' + ic('plus') + ' เพิ่มที่พัก</button>' : '') + '</div><div class="tbl-wrap" style="max-height:none"><table class="t"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>ชื่อย่อ</th><th>ชื่อไฟล์ Import HRMi</th><th class="n">ลำดับ</th><th></th></tr></thead><tbody>' +
     d.buildings.map(function (b) { return '<tr><td>' + esc(b.id) + '</td><td>' + esc(b.name) + '</td><td>' + esc(b.short) + '</td><td>' + esc(b.hrmiName) + '.xls</td><td class="n">' + b.sort + '</td><td>' + (hr ? '<button class="btn sm" data-b="' + b.id + '">' + ic('edit') + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div></div>' +
     (hr ? '<div class="card mt16"><h3>' + ic('upload') + ' นำเข้าประวัติจากไฟล์เดิม (แดชบอร์ด ปี 2568–2569)</h3><p class="small muted">เลือก<b>โฟลเดอร์ปี</b> (เช่น <code>03.เงินหัก 3rd party-สมเด็จฯ/2568</code> แล้วทำซ้ำกับ 2569) ระบบอ่านไฟล์ค่าน้ำ/ค่าไฟของทุกเดือนในเครื่องของท่าน (ไม่อัปโหลดไฟล์) ใช้ไฟล์ในโฟลเดอร์ "3.เงินหักสรุป…" ก่อน (มียอดนำส่งจริง) ถ้าไม่มีจะใช้ไฟล์ดิบ · นำเข้าซ้ำได้ (แทนที่เดือนเดิม) · รอบที่ล็อกในระบบแล้วใช้ข้อมูลระบบแทน</p>' +
       '<div class="row"><label class="btn">' + ic('layers') + ' เลือกโฟลเดอร์ปี<input type="file" id="st-hd" webkitdirectory directory multiple class="sr"></label><label class="btn">' + ic('file') + ' เลือกหลายไฟล์<input type="file" id="st-hf" accept=".xls,.xlsx" multiple class="sr"></label></div><div id="st-hp" class="mt12"></div></div>' : '');
+  loadStaffIndex().then(function (x) { $('#st-si').textContent = 'ปัจจุบัน ' + nf(x.n) + ' คน' + (x.hrmiAt ? ' · นำเข้าล่าสุด ' + thDate(x.hrmiAt) : ''); }).catch(function () { });
   if (!hr) return;
+  $('#st-sf').onchange = function () {
+    var f = this.files[0]; if (!f) return; var box = $('#st-sp'); box.innerHTML = loadingHtml('กำลังอ่านไฟล์ในเครื่อง…');
+    XIO2.readStaff(f).then(function (rows) {
+      var n = 0, chunks = []; for (var i = 0; i < rows.length; i += 1000) chunks.push(rows.slice(i, i + 1000));
+      return chunks.reduce(function (p, ch, i) { return p.then(function () { box.innerHTML = loadingHtml('กำลังส่งชุดที่ ' + (i + 1) + '/' + chunks.length + '…'); return api('importStaff', { rows: ch, fileName: f.name }).then(function (d) { n += d.imported; }); }); }, Promise.resolve())
+        .then(function () { box.innerHTML = '<div class="note ok">' + ic('check') + '<div>นำเข้า ' + nf(n) + ' คน (ไม่ส่งเลขบัตรประชาชน)</div></div>'; S.staffIdx = null; return loadStaffIndex(); })
+        .then(function (x) { $('#st-si').textContent = 'ปัจจุบัน ' + nf(x.n) + ' คน'; });
+    }).catch(function (e) { box.innerHTML = '<div class="note danger">' + esc(e.message) + '</div>'; });
+    this.value = '';
+  };
+  if ($('#st-pl')) $('#st-pl').onclick = function () {
+    api('listPiiLog', { limit: 500 }).then(function (L) {
+      modal({ title: 'บันทึกการเปิดดูข้อมูลส่วนบุคคล', wide: true, body: L.length ? '<div class="tbl-wrap" style="max-height:60vh"><table class="t"><thead><tr><th>เวลา</th><th>ผู้เปิด</th><th>การทำงาน</th><th>ผู้พัก</th><th>ข้อมูล</th></tr></thead><tbody>' + L.map(function (x) { return '<tr><td class="small">' + thDate(x.ts) + '</td><td>' + esc(x.actor) + '</td><td>' + ({ UNLOCK: 'ยืนยันรหัสผ่าน', VIEW: 'เปิดดู', EDIT: 'แก้ไข' }[x.action] || esc(x.action)) + '</td><td>' + esc(x.rid) + '</td><td class="small">' + esc(x.fields) + '</td></tr>'; }).join('') + '</tbody></table></div>' : emptyHtml('ยังไม่มีบันทึก'), buttons: [{ label: 'ปิด', cls: 'primary' }] });
+    }).catch(errToast);
+  };
   $('#st-save').onclick = function () {
     var btn = this; busy(btn, true);
-    api('saveSettings', { settings: { brokenMode: $('#st-bm').value, alertFactor: $('#st-af').value, alertMinUnits: $('#st-am').value, warnGroups: $('#st-wg').value, hrmiCodeW: $('#st-cw').value, hrmiCodeE: $('#st-ce').value, apiBase: $('#st-ab').value, apiEmpPath: $('#st-ap').value, webUrl: $('#st-web').value, supportPhone: $('#st-ph').value, announcement: $('#st-an').value, maintenance: $('#st-mt').checked ? 'TRUE' : 'FALSE' } })
+    api('saveSettings', { settings: { brokenMode: $('#st-bm').value, alertFactor: $('#st-af').value, alertMinUnits: $('#st-am').value, warnGroups: $('#st-wg').value, hrmiCodeW: $('#st-cw').value, hrmiCodeE: $('#st-ce').value, apiBase: $('#st-ab').value, apiEmpPath: $('#st-ap').value, webUrl: $('#st-web').value, supportPhone: $('#st-ph').value, announcement: $('#st-an').value, maintenance: $('#st-mt').checked ? 'TRUE' : 'FALSE',
+      portalOpen: $('#st-po').checked ? 'TRUE' : 'FALSE', disputeDays: $('#st-dd').value, mailBld: $('#st-mb').checked ? 'TRUE' : 'FALSE', mailHr: $('#st-mh').checked ? 'TRUE' : 'FALSE', bldEmails: $('#st-be').value.trim(), hrEmail: $('#st-he').value.trim(), hrcUrl: $('#st-hc').value.trim() } })
       .then(function () { busy(btn, false); toast('บันทึกการตั้งค่าแล้ว', 'ok'); return api('bootstrap'); }).then(function (b) { applyBoot(b); route(); }).catch(function (e) { busy(btn, false); errToast(e); });
   };
   $('#st-test').onclick = function () { var btn = this; busy(btn, true); api('testApi', {}).then(function (r) { busy(btn, false); $('#st-tr').innerHTML = '<span class="dot ok"></span> ตอบใน ' + r.ms + ' ms · ' + (r.sample ? esc(r.sample.name) + ' · ' + esc(r.sample.group) : 'ไม่พบข้อมูล') + '<div class="tiny muted">' + esc(r.path) + (r.sample ? '<br>ฟิลด์: ' + esc(r.sample.fields.join(', ')) : '') + '</div>'; }).catch(function (e) { busy(btn, false); $('#st-tr').innerHTML = '<span style="color:var(--danger)">' + esc(e.message) + '</span>'; }); };

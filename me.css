@@ -1,0 +1,26 @@
+/* SOMDEJ U-Bill — me.css : หน้า "ค่าน้ำ–ค่าไฟที่พักของฉัน" (มือถือเป็นหลัก) */
+.me-body { background: linear-gradient(180deg, #e7f4fc 0, var(--bg) 320px); min-height: 100vh; }
+.me-wrap { max-width: 620px; margin: 0 auto; padding: 18px 14px 40px; padding-top: max(18px, env(safe-area-inset-top)); }
+.me-brand { display: flex; gap: 12px; align-items: center; }
+.me-brand .logo { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #1eaaf0, #094896); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 6px 18px rgba(11,132,198,.35); }
+.me-brand .logo svg { width: 26px; height: 26px; stroke: #fff; }
+.me-brand b { font-family: var(--font-head); font-size: 19px; display: block; } .me-brand span { font-size: 12px; color: var(--muted); }
+.seg.block { display: flex; } .seg.block button { flex: 1; }
+.orline { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 18px 0 8px; } .orline::before, .orline::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.me-who { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .me-who b { font-size: 17px; font-family: var(--font-head); }
+.me-rounds { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.me-rounds button { position: relative; flex: none; min-width: 104px; text-align: left; border: 1px solid var(--line-2); background: var(--surface); border-radius: 14px; padding: 9px 12px; cursor: pointer; }
+.me-rounds button span { display: block; font-size: 12px; color: var(--muted); } .me-rounds button b { font-family: var(--font-head); font-size: 16px; }
+.me-rounds button.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px rgba(11,132,198,.18); }
+.me-rounds button i { position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; } .me-rounds i.ok { background: var(--ok); } .me-rounds i.wait { background: var(--elec); }
+.me-total .me-sum { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px; margin-top: 10px; }
+.me-sum div { background: var(--surface-2); border-radius: 12px; padding: 10px; } .me-sum span { font-size: 12px; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+.me-sum b { font-family: var(--font-head); font-size: 20px; display: block; } .me-sum .t { background: linear-gradient(135deg, #0b84c6, #094896); color: #fff; } .me-sum .t span { color: #d6ecfa; } .me-sum .t b { font-size: 24px; } .me-sum small { font-size: 12px; font-weight: 500; }
+.me-tl { list-style: none; padding: 0; margin: 10px 0 0; } .me-tl li { position: relative; padding: 0 0 14px 28px; }
+.me-tl li::before { content: ''; position: absolute; left: 6px; top: 5px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line-2); background: #fff; }
+.me-tl li::after { content: ''; position: absolute; left: 12px; top: 19px; bottom: 0; width: 2px; background: var(--line); } .me-tl li:last-child::after { display: none; }
+.me-tl li.done::before { background: var(--ok); border-color: var(--ok); } .me-tl li.done::after { background: #bfe5d3; }
+.me-tl li b { display: block; font-weight: 600; font-size: 14px; } .me-tl li span { display: block; font-size: 12px; color: var(--muted); } .me-tl li:not(.done) b { color: var(--muted); }
+.me-item .me-share { font-family: var(--font-head); font-size: 18px; color: var(--accent-2); }
+.me-d { border-top: 1px solid var(--line); padding: 10px 0; } .me-d:first-child { border-top: 0; }
+@media (max-width: 420px) { .me-total .me-sum { grid-template-columns: 1fr 1fr; } .me-sum .t { grid-column: span 2; } }
