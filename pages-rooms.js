@@ -175,16 +175,24 @@ function peopleList(B, L, redraw) {
   var q = B._q || '', f = B._f || '';
   var all = []; L.forEach(function (r) { r.people.forEach(function (p) { all.push(Object.assign({ room: r, bld: r.bld }, p)); }); });
   var draw = function () {
-    var LL = all.filter(function (p) { return (!f || (f === 'LEAVE' ? p.leave : f === 'NOPHONE' ? !(p.cf & 1) : p.rtype === f)) && (!q || (p.name + ' ' + p.empCode + ' ' + p.rid + ' ' + p.room.room + ' ' + p.position + ' ' + p.division + ' ' + p.group).indexOf(q) >= 0); });
+    var LL = all.filter(function (p) { return (!f || (f === 'LEAVE' ? p.leave : f === 'NOPHONE' ? !(p.cf & 1) : f === 'MATCH' ? !!p.match : p.rtype === f)) && (!q || (p.name + ' ' + p.empCode + ' ' + p.rid + ' ' + p.room.room + ' ' + p.position + ' ' + p.division + ' ' + p.group).indexOf(q) >= 0); });
     $('#pl-n').textContent = nf(LL.length) + ' คน';
     $('#pl-t').innerHTML = LL.slice(0, 800).map(function (p) {
-      return '<tr><td class="tiny muted">' + esc(p.rid) + '</td><td>' + esc(p.name) + (p.leave ? ' <span class="tag violet">' + esc(p.leave.reason) + '</span>' : '') + '</td><td>' + esc(p.rtype === 'EMP' ? p.empCode : '') + (p.rtype === 'PENDING' ? '<span class="tag warn">รอรหัส</span>' : '') + '</td><td class="small">' + (RTYPE_TH[p.rtype] || '') + (p.group ? '<div class="tiny muted">' + esc(p.group) + '</div>' : '') + '</td><td>' + (GENDER_TH[p.gender] || '-') + '</td>' +
+      return '<tr><td class="tiny muted">' + esc(p.rid) + '</td><td>' + esc(p.name) + (p.match ? '<div class="tiny"><span class="tag warn">ตรงทะเบียนบุคลากร</span> ' + p.match.map(function (m) { return esc(m[1]) + ' ' + esc(m[0]) + ' <button class="btn sm amber" data-mc="' + esc(p.rid) + '">ใส่รหัส</button>'; }).join(' · ') + '</div>' : '') + (p.leave ? ' <span class="tag violet">' + esc(p.leave.reason) + '</span>' : '') + '</td><td>' + esc(p.rtype === 'EMP' ? p.empCode : '') + (p.rtype === 'PENDING' ? '<span class="tag warn">รอรหัส</span>' : '') + '</td><td class="small">' + (RTYPE_TH[p.rtype] || '') + (p.group ? '<div class="tiny muted">' + esc(p.group) + '</div>' : '') + '</td><td>' + (GENDER_TH[p.gender] || '-') + '</td>' +
         '<td class="small">' + esc(p.position || '-') + '</td><td class="small">' + esc(p.division || '-') + '</td><td class="nowrap"><b>' + esc(p.room.room) + '</b> <span class="tiny muted">' + esc(bldOf(p.bld).short) + '</span></td><td class="small">' + thDate(p.start, false) + '</td>' +
         '<td class="small">' + ((p.cf & 1) ? '<span class="dot ok"></span> เบอร์' : '<span class="tag">ไม่มีเบอร์</span>') + ' ' + ((p.cf & 2) ? '<span class="dot ok"></span> อีเมล' : '<span class="tag">ไม่มีอีเมล</span>') + '</td><td><button class="btn sm" data-r="' + esc(p.room.id) + '">' + ic('edit') + '</button></td></tr>';
     }).join('');
     $$('[data-r]', B).forEach(function (b) { b.onclick = function () { roomDialog(b.dataset.r, redraw); }; });
+    $$('[data-mc]', B).forEach(function (b) { b.onclick = function () { assignCodeDialog(b.dataset.mc, function (d) { if (d && d.master) setMaster(d.master); redraw(); }); }; });
   };
-  B.innerHTML = '<div class="row"><input class="inp" id="pl-q" placeholder="ค้นชื่อ / รหัส / ห้อง / ตำแหน่ง / ฝ่าย" style="max-width:300px" value="' + esc(q) + '"><div class="seg" id="pl-f">' + [['', 'ทั้งหมด'], ['EMP', 'หักเงินเดือน'], ['CASH', 'เงินสด'], ['PENDING', 'รอรหัส'], ['LEAVE', 'พักการเรียกเก็บ'], ['NOPHONE', 'ไม่มีเบอร์']].map(function (x) { return '<button data-f="' + x[0] + '" class="' + (f === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><span class="grow"></span><span class="small muted" id="pl-n"></span></div>' +
+  /* ผู้ชำระเงินสด/รอรหัส ที่ชื่อ (ตัดคำนำหน้า) ตรงกับทะเบียนบุคลากร HRMi → น่าจะบันทึกผิด */
+  loadStaffIndex().then(function (ix) {
+    var by = {}; (ix.list || []).forEach(function (x) { var k = nameKey(x[1]); if (k) (by[k] = by[k] || []).push(x); });
+    var n = 0; all.forEach(function (p) { if (p.rtype !== 'EMP') { var m = by[nameKey(p.name)]; p.match = m ? m.slice(0, 3) : null; if (m) n++; } });
+    var btn = $('#pl-f button[data-f="MATCH"]', B); if (btn) btn.textContent = 'เงินสดที่น่าจะเป็นบุคลากร (' + n + ')';
+    draw();
+  }).catch(function () { });
+  B.innerHTML = '<div class="row"><input class="inp" id="pl-q" placeholder="ค้นชื่อ / รหัส / ห้อง / ตำแหน่ง / ฝ่าย" style="max-width:300px" value="' + esc(q) + '"><div class="seg" id="pl-f">' + [['', 'ทั้งหมด'], ['EMP', 'หักเงินเดือน'], ['CASH', 'เงินสด'], ['PENDING', 'รอรหัส'], ['LEAVE', 'พักการเรียกเก็บ'], ['NOPHONE', 'ไม่มีเบอร์'], ['MATCH', 'เงินสดที่น่าจะเป็นบุคลากร']].map(function (x) { return '<button data-f="' + x[0] + '" class="' + (f === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><span class="grow"></span><span class="small muted" id="pl-n"></span></div>' +
     '<div class="tbl-wrap mt12"><table class="t"><thead><tr><th>เลขผู้พัก</th><th>ชื่อ-สกุล</th><th>รหัสพนักงาน</th><th>ประเภท</th><th>เพศ</th><th>ตำแหน่ง</th><th>ฝ่าย</th><th>ห้อง</th><th>เข้าพัก</th><th>ข้อมูลติดต่อ</th><th></th></tr></thead><tbody id="pl-t"></tbody></table></div>';
   $('#pl-q').oninput = debounce(function () { q = B._q = $('#pl-q').value.trim(); draw(); }, 250);
   $$('#pl-f button').forEach(function (b) { b.onclick = function () { f = B._f = b.dataset.f; $$('#pl-f button').forEach(function (x) { x.classList.toggle('on', x === b); }); draw(); }; });

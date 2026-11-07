@@ -78,7 +78,7 @@ function roomDialog(key, redraw) {
       (held[p.rid] ? ' <span class="tag warn" title="ยอดพักไว้ (หักย้อนหลังเมื่อได้รหัส)">ยอดพักไว้ ' + baht(held[p.rid]) + '</span>' : '') +
       '<div class="tiny muted">' + [GENDER_TH[p.gender] || '', p.position, p.division].filter(Boolean).map(esc).join(' · ') + ' · เข้าพัก ' + thDate(p.start, false) + '</div></div>' +
       '<div class="row"><button class="btn sm ghost" data-pii="' + esc(p.rid) + '" title="ข้อมูลติดต่อ (ข้อมูลส่วนบุคคล)">' + ic('eye') + ((p.cf & 1) ? '' : ' <span class="tag">ไม่มีเบอร์</span>') + ((p.cf & 2) ? '' : ' <span class="tag">ไม่มีอีเมล</span>') + '</button>' +
-      (p.rtype === 'PENDING' ? '<button class="btn sm amber" data-code="' + esc(p.rid) + '">' + ic('key') + ' ใส่รหัส</button>' : '') +
+      (p.rtype !== 'EMP' ? '<button class="btn sm amber" data-code="' + esc(p.rid) + '" title="' + (p.rtype === 'PENDING' ? 'ได้รหัสพนักงานแล้ว' : 'บันทึกผิดเป็นเงินสด แต่เป็นบุคลากร → เปลี่ยนเป็นหักเงินเดือน') + '">' + ic('key') + ' ใส่รหัส</button>' : '') +
       (p.rtype !== 'EMP' ? '<button class="btn sm" data-act="' + esc(p.rid) + '" title="ออกรหัสให้ผู้พักเข้าดูยอดของตนเอง">' + ic('link') + ' รหัสดูยอด' + (p.acct === 'SET' ? ' ✓' : '') + '</button>' : '') +
       '<button class="btn sm" data-leave="' + esc(p.rid) + '">' + ic('calendar') + ' พักการเรียกเก็บ</button><button class="btn sm" data-res="' + esc(p.rid) + '">' + ic('user') + '</button>' +
       '<button class="btn sm warn" data-outp="' + esc(p.rid) + '">' + ic('out') + ' ย้ายออก</button></div></div></div>';
@@ -116,6 +116,9 @@ function roomDialog(key, redraw) {
       $$('[data-pii]', el).forEach(function (b) { b.onclick = function () { contactDialog(b.dataset.pii, after); }; });
     } });
 }
+/** ตัดคำนำหน้า (นาย/นาง/น.ส./พญ./นพ./แพทย์หญิง ฯลฯ) และวงเล็บ เพื่อค้น/เทียบชื่อ */
+function stripTitle(n) { return String(n || '').replace(/[\(\[].*?[\)\]]/g, ' ').replace(/^\s*(นางสาว|นาง|นาย|น\.ส\.|ว่าที่\s*ร\.?ต\.?\s*(หญิง)?|แพทย์หญิง|นายแพทย์|ทันตแพทย์หญิง|ทันตแพทย์|เภสัชกรหญิง|เภสัชกร|พญ\.|นพ\.|ทพญ\.|ทพ\.|ภญ\.|ภก\.|ดร\.|Mr\.?|Mrs\.?|Ms\.?|Miss)\s*/i, '').replace(/\s+/g, ' ').trim(); }
+function nameKey(n) { return stripTitle(n).replace(/\s+/g, ''); }
 function resOf(rid) { return (S.master.residents || []).filter(function (r) { return r.rid === rid; })[0] || { rid: rid, name: rid }; }
 function roomEditDialog(room, after) {
   var ms = room.meters.filter(function (m) { return m.status !== 'OCC'; })[0];
@@ -140,7 +143,7 @@ function loadStaffIndex() {
 }
 function searchPeople(q, opt) {
   q = String(q || '').trim(); if (q.length < 2) return [];
-  var nq = q.replace(/\s+/g, ''), out = [], seen = {};
+  var nq = nameKey(q) || q.replace(/\s+/g, ''), out = [], seen = {};
   var hit = function (name, code) { var n = String(name || '').replace(/\s+/g, ''); return (code && String(code).indexOf(q) === 0) || n.indexOf(nq) >= 0; };
   ((S.staffIdx && S.staffIdx.list) || []).forEach(function (x) { if (out.length < 30 && hit(x[1], x[0])) { seen[x[0]] = 1; out.push({ src: 'STAFF', empCode: x[0], name: x[1], position: x[2], division: x[3], gender: x[4], status: x[5] }); } });
   if (!opt || opt.residents !== false) (S.master.residents || []).forEach(function (r) { if (out.length < 40 && !seen[r.empCode || '-'] && hit(r.name, r.empCode || r.rid)) out.push({ src: 'RES', rid: r.rid, empCode: r.empCode, name: r.name, rtype: r.rtype, position: r.position, division: r.division, gender: r.gender, group: r.group }); });
@@ -238,9 +241,9 @@ function residentDialog(rid, after) {
 function assignCodeDialog(rid, after) {
   var r = resOf(rid), held = (S.master.held || {})[rid] || 0;
   modal({ title: 'ใส่รหัสพนักงาน · ' + esc(r.name),
-    body: '<p class="small">เมื่อพนักงานใหม่ได้รหัสใน HRMi แล้ว ใส่รหัสที่นี่ ระบบจะตรวจกับ SmartAPI เปลี่ยนชื่อเป็นชื่อทางการ และเปลี่ยนเป็น "หักเงินเดือน" ทุกมิเตอร์</p>' +
+    body: '<p class="small">' + (r.rtype === 'CASH' ? 'ใช้เมื่อผู้พักคนนี้<b>เป็นบุคลากร</b> แต่ถูกบันทึกเป็น "ชำระเงินสด" — เลือกชื่อจากทะเบียนบุคลากร (หรือพิมพ์รหัส 7 หลัก) ' : 'เมื่อพนักงานใหม่ได้รหัสใน HRMi แล้ว ใส่รหัสที่นี่ ') + 'ระบบจะตรวจกับ SmartAPI เปลี่ยนชื่อเป็นชื่อทางการ และเปลี่ยนเป็น "หักเงินเดือน" ทุกมิเตอร์ · ประวัติการพักเดิมยังอยู่ · มีผลกับรอบที่ยังไม่ล็อก</p>' +
       (held ? '<div class="note warn">' + ic('cash') + '<div>มียอดที่พักไว้ระหว่างรอรหัส <b>' + baht(held) + ' บาท</b> — จะรวมหักย้อนหลังในรอบถัดไปที่ HR ล็อก</div></div>' : '') +
-      '<div class="field mt12"><label class="f">ค้นชื่อ หรือ รหัส 7 หลัก</label><input class="inp" id="ac-q" value="' + esc(r.name) + '"><div id="ac-res" class="pick"></div></div><div class="field"><label class="f">รหัสพนักงาน</label><input class="inp" id="ac-c" inputmode="numeric" maxlength="7" style="max-width:180px"></div>',
+      '<div class="field mt12"><label class="f">ค้นชื่อ หรือ รหัส 7 หลัก</label><input class="inp" id="ac-q" value="' + esc(stripTitle(r.name)) + '"><div id="ac-res" class="pick"></div></div><div class="field"><label class="f">รหัสพนักงาน</label><input class="inp" id="ac-c" inputmode="numeric" maxlength="7" style="max-width:180px"></div>',
     buttons: [{ label: 'ยกเลิก' }, { label: ic('check') + ' ตรวจและบันทึก', cls: 'primary', onClick: function () {
       return api('assignCode', { rid: rid, empCode: $('#ac-c').value.trim() }).then(function (d) { toast('บันทึกรหัสแล้ว: ' + d.name + (d.held ? ' · ยอดพักไว้ ' + baht(d.held) + ' บาท จะหักในรอบถัดไป' : ''), 'ok', 7000); after(d); });
     } }],
