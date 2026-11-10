@@ -1,4 +1,4 @@
-/* SOMDEJ U-Bill — me.js : หน้า "ค่าน้ำ–ค่าไฟที่พักของฉัน" สำหรับผู้พัก (build 2569-11-08.1)
+/* SOMDEJ U-Bill — me.js : หน้า "ค่าน้ำ–ค่าไฟที่พักของฉัน" สำหรับผู้พัก (build 2569-11-10.1)
  * เข้าได้ 3 ทาง: ต่อจาก HR Connect (เข้าไว้แล้วในเครื่องนี้) · รหัสพนักงาน + รหัสผ่าน HR Connect / เลขบัตร · เลขผู้พัก + รหัส (ผู้ไม่มีรหัส 7 หลัก) */
 var ME = { data: null, sel: null, charts: [] };
 var ME_KEY = 'ubme_token';
@@ -26,35 +26,76 @@ function meHead() {
 }
 function meLogin(mode, msg) {
   var hrc = (S.brand && S.brand.hrcUrl) || 'https://hr-somdej.github.io/hr-connect/';
+  var inLine = /\bLine\//i.test(navigator.userAgent || ''), inApp = inLine || /FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '');
+  var phone = esc((S.brand && S.brand.supportPhone) || '23400 - 23419');
   $('#app').innerHTML = '<div class="me-wrap">' + meHead() +
     (mode === 'expired' ? '<div class="note warn mt12">' + ic('info') + '<div>หมดเวลาการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่</div></div>' : '') + (msg ? '<div class="note warn mt12">' + ic('info') + '<div>' + esc(msg) + '</div></div>' : '') +
-    '<div class="card mt16"><div class="seg block" id="ml-t"><button data-t="E" class="on">' + ic('user') + ' บุคลากร (มีรหัสพนักงาน)</button><button data-t="R">' + ic('key') + ' นศพ. / ผู้ไม่มีรหัส</button></div>' +
-    '<div id="ml-e" class="mt16"><a class="btn primary block lg" href="' + esc(hrc) + '" id="ml-hrc">' + ic('login') + ' เข้าผ่าน HR Connect</a><p class="tiny muted center mt8">เข้า HR Connect แล้วกดเมนู "ค่าน้ำ–ค่าไฟที่พักของฉัน" หรือกลับมาหน้านี้ ระบบจะเข้าต่อให้เอง</p>' +
-    '<div class="orline"><span>หรือกรอกที่นี่</span></div>' +
-    '<div class="field"><label class="f">รหัสพนักงาน</label><input class="inp" id="ml-emp" inputmode="numeric" maxlength="7" autocomplete="username"></div>' +
-    '<div class="field" id="ml-pwf"><label class="f">รหัสผ่าน HR Connect</label><input class="inp" type="password" id="ml-pw" autocomplete="current-password"></div>' +
-    '<div class="field hide" id="ml-cidf"><label class="f">เลขบัตรประชาชน 13 หลัก</label><input class="inp" id="ml-cid" inputmode="numeric" maxlength="17" autocomplete="off"><div class="help">ใช้ได้เฉพาะผู้ที่ยังไม่เคยตั้งรหัสผ่านใน HR Connect · ระบบไม่บันทึกเลขบัตร</div></div>' +
-    '<button class="btn primary block lg" id="ml-go">' + ic('login') + ' ดูยอดของฉัน</button><div class="row between mt12 small"><a href="#" id="ml-sw">ยังไม่เคยตั้งรหัสผ่าน HR Connect? ใช้เลขบัตรประชาชน</a></div></div>' +
-    '<div id="ml-r" class="mt16 hide"><div class="seg" id="ml-rt"><button data-m="L" class="on">เข้าสู่ระบบ</button><button data-m="A">เข้าครั้งแรก (มีรหัสเปิดใช้)</button></div>' +
-    '<div class="field mt12"><label class="f">เลขผู้พัก</label><input class="inp" id="ml-rid" placeholder="เช่น R00123" autocapitalize="characters"></div>' +
-    '<div class="field hide" id="ml-codef"><label class="f">รหัสเปิดใช้ (8 ตัว จากฝ่ายอาคาร)</label><input class="inp" id="ml-code" autocapitalize="characters" autocomplete="off"></div>' +
-    '<div class="field"><label class="f" id="ml-rpwl">รหัสผ่าน</label><input class="inp" type="password" id="ml-rpw" autocomplete="current-password"></div>' +
-    '<div class="field hide" id="ml-rpw2f"><label class="f">ยืนยันรหัสผ่านใหม่</label><input class="inp" type="password" id="ml-rpw2" autocomplete="new-password"><div class="help">อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข</div></div>' +
-    '<button class="btn primary block lg" id="ml-rgo">' + ic('login') + ' ดูยอดของฉัน</button><p class="tiny muted mt8">ยังไม่มีรหัส / ลืมรหัสผ่าน: ขอ "รหัสดูยอด" จากฝ่ายอาคาร</p></div></div>' +
-    '<p class="tiny muted center mt16">ติดต่อ ฝ่ายทรัพยากรบุคคล ' + esc((S.brand && S.brand.supportPhone) || '23400 - 23419') + ' · เห็นเฉพาะข้อมูลของท่านเอง · รุ่น ' + UB_BUILD + '</p></div>';
-  var cid = false, rmode = 'L';
+    (inApp ? '<div class="note info mt12">' + ic('info') + '<div><b>เปิดจากไลน์อยู่</b> — ใช้ได้ตามปกติ แต่ถ้าอยากให้จำการเข้าสู่ระบบไว้ กด <b>⋯</b> มุมขวาบน แล้วเลือก <b>"เปิดในเบราว์เซอร์"</b> (Chrome / Safari)</div></div>' : '') +
+    // ---- ขั้นที่ 1: เลือกว่าเป็นใคร
+    '<div class="card mt16"><div class="me-step"><span>1</span><b>ท่านเป็นใคร</b></div>' +
+    '<div class="me-who-pick mt8" id="ml-t"><button data-t="E" class="on">' + ic('user') + '<b>บุคลากร รพ.</b><small>มีรหัสพนักงาน 7 หลัก</small></button><button data-t="R">' + ic('key') + '<b>นิสิตแพทย์ / แพทย์ฝึกหัด</b><small>หรือยังไม่มีรหัสพนักงาน</small></button></div></div>' +
+    // ---- บุคลากร
+    '<div id="ml-e" class="card mt12"><div class="me-step"><span>2</span><b>กรอกรหัสพนักงาน</b></div>' +
+    '<div class="field mt8"><input class="inp lg" id="ml-emp" inputmode="numeric" maxlength="7" autocomplete="username" placeholder="เช่น 5660101"></div>' +
+    '<div class="me-step mt12"><span>3</span><b>ยืนยันตัวตนด้วย</b><small class="muted">เลือก 1 อย่าง</small></div>' +
+    '<div class="seg block mt8" id="ml-how"><button data-h="P" class="on">' + ic('lock') + ' รหัสผ่าน</button><button data-h="C">' + ic('id') + ' เลขบัตรประชาชน</button></div>' +
+    '<div class="field mt12" id="ml-pwf"><input class="inp lg" type="password" id="ml-pw" autocomplete="current-password" placeholder="รหัสผ่านที่ใช้เข้า HR Connect"><div class="help">รหัสเดียวกับที่ใช้เข้า <b>SOMDEJ HR Connect</b> (ไม่ใช่รหัส HIS / อีเมล)</div></div>' +
+    '<div class="field mt12 hide" id="ml-cidf"><input class="inp lg" id="ml-cid" inputmode="numeric" maxlength="17" autocomplete="off" placeholder="เลขบัตรประชาชน 13 หลัก"><div class="help">ใช้ได้เมื่อ<b>ยังไม่เคยตั้งรหัสผ่าน</b>ใน HR Connect · ระบบใช้ตรวจกับทะเบียนบุคลากรเท่านั้น ไม่บันทึกเลขบัตร</div></div>' +
+    '<button class="btn primary block lg mt8" id="ml-go">' + ic('login') + ' ดูค่าน้ำ–ค่าไฟของฉัน</button>' +
+    '<div class="orline"><span>หรือ</span></div><a class="btn block" href="' + esc(hrc) + '" id="ml-hrc">' + ic('link') + ' เปิด HR Connect แล้วกดเมนู "ค่าน้ำ–ค่าไฟ"</a><p class="tiny muted center mt8">ถ้าเข้า HR Connect ไว้แล้วในเครื่องนี้ ระบบจะพาเข้ามาเองโดยไม่ต้องกรอกอีก</p></div>' +
+    // ---- ผู้ไม่มีรหัส
+    '<div id="ml-r" class="card mt12 hide"><div class="note info">' + ic('info') + '<div>ขอ <b>"รหัสดูยอด"</b> (เลขผู้พัก R + ตัวเลข และรหัสเปิดใช้ 8 ตัว) จาก<b>ฝ่ายอาคาร</b>ก่อน · ใช้ครั้งแรกเพื่อตั้งรหัสผ่านของตนเอง</div></div>' +
+    '<div class="seg block mt12" id="ml-rt"><button data-m="A" class="on">เข้าครั้งแรก (มีรหัสเปิดใช้)</button><button data-m="L">เคยตั้งรหัสผ่านแล้ว</button></div>' +
+    '<div class="field mt12"><label class="f">เลขผู้พัก</label><input class="inp lg" id="ml-rid" placeholder="เช่น R00123" autocapitalize="characters"></div>' +
+    '<div class="field" id="ml-codef"><label class="f">รหัสเปิดใช้ (8 ตัว จากฝ่ายอาคาร)</label><input class="inp lg" id="ml-code" autocapitalize="characters" autocomplete="off"></div>' +
+    '<div class="field"><label class="f" id="ml-rpwl">ตั้งรหัสผ่านใหม่</label><input class="inp lg" type="password" id="ml-rpw" autocomplete="new-password"></div>' +
+    '<div class="field" id="ml-rpw2f"><label class="f">ยืนยันรหัสผ่านใหม่</label><input class="inp lg" type="password" id="ml-rpw2" autocomplete="new-password"><div class="help">อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข · จดไว้ใช้ครั้งต่อไป</div></div>' +
+    '<button class="btn primary block lg" id="ml-rgo">' + ic('login') + ' ดูค่าน้ำ–ค่าไฟของฉัน</button><p class="tiny muted mt8">ลืมรหัสผ่าน / รหัสเปิดใช้หมดอายุ (7 วัน): ขอรหัสดูยอดใหม่จากฝ่ายอาคาร</p></div>' +
+    // ---- ช่วยเหลือ
+    '<details class="card mt12 me-help"><summary>' + ic('help') + ' เข้าไม่ได้? ดูวิธีแก้</summary><ul class="small">' +
+    '<li><b>"ยังไม่เคยตั้งรหัสผ่านใน HR Connect"</b> → เลือก <b>เลขบัตรประชาชน</b> แทน</li>' +
+    '<li><b>"ท่านตั้งรหัสผ่านใน HR Connect แล้ว"</b> → เลือก <b>รหัสผ่าน HR Connect</b> · ลืมรหัสผ่าน: เปิด HR Connect กด "ลืมรหัสผ่าน" (รหัสยืนยันส่งไปอีเมล)</li>' +
+    '<li><b>"ไม่พบข้อมูลการพักอาศัยของท่าน"</b> → ชื่อท่านยังไม่อยู่ในทะเบียนห้องพัก ติดต่อฝ่ายอาคาร</li>' +
+    '<li><b>เข้าได้แต่ยังไม่เห็นยอดเดือนล่าสุด</b> → ยอดจะแสดงหลังฝ่ายอาคารส่งยอดของเดือนนั้นแล้ว</li>' +
+    '<li><b>กรอกผิดหลายครั้งแล้วถูกพักการเข้าสู่ระบบ</b> → รอ 10 นาทีแล้วลองใหม่</li>' +
+    '<li>เพิ่มหน้านี้ไว้ที่หน้าจอโทรศัพท์: Safari กด <b>แชร์ → เพิ่มไปยังหน้าจอโฮม</b> · Chrome กด <b>⋮ → เพิ่มลงในหน้าจอหลัก</b></li>' +
+    '</ul><p class="small">ยังไม่ได้: ฝ่ายทรัพยากรบุคคล โทร ' + phone + '</p></details>' +
+    '<p class="tiny muted center mt16">เห็นเฉพาะข้อมูลของท่านเอง · รุ่น ' + UB_BUILD + '</p></div>';
+  var how = 'P', rmode = 'A';
+  var setHow = function (h) { how = h; $$('#ml-how button').forEach(function (x) { x.classList.toggle('on', x.dataset.h === h); }); $('#ml-pwf').classList.toggle('hide', h !== 'P'); $('#ml-cidf').classList.toggle('hide', h !== 'C'); };
+  var setR = function (m) { rmode = m; $$('#ml-rt button').forEach(function (x) { x.classList.toggle('on', x.dataset.m === m); }); $('#ml-codef').classList.toggle('hide', m !== 'A'); $('#ml-rpw2f').classList.toggle('hide', m !== 'A'); $('#ml-rpwl').textContent = m === 'A' ? 'ตั้งรหัสผ่านใหม่' : 'รหัสผ่าน'; $('#ml-rpw').autocomplete = m === 'A' ? 'new-password' : 'current-password'; };
   $$('#ml-t button').forEach(function (b) { b.onclick = function () { $$('#ml-t button').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#ml-e').classList.toggle('hide', b.dataset.t !== 'E'); $('#ml-r').classList.toggle('hide', b.dataset.t === 'E'); }; });
-  $('#ml-sw').onclick = function (e) { e.preventDefault(); cid = !cid; $('#ml-pwf').classList.toggle('hide', cid); $('#ml-cidf').classList.toggle('hide', !cid); this.textContent = cid ? 'ใช้รหัสผ่าน HR Connect' : 'ยังไม่เคยตั้งรหัสผ่าน HR Connect? ใช้เลขบัตรประชาชน'; };
-  $$('#ml-rt button').forEach(function (b) { b.onclick = function () { rmode = b.dataset.m; $$('#ml-rt button').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#ml-codef').classList.toggle('hide', rmode !== 'A'); $('#ml-rpw2f').classList.toggle('hide', rmode !== 'A'); $('#ml-rpwl').textContent = rmode === 'A' ? 'ตั้งรหัสผ่านใหม่' : 'รหัสผ่าน'; }; });
+  $$('#ml-how button').forEach(function (b) { b.onclick = function () { setHow(b.dataset.h); }; });
+  $$('#ml-rt button').forEach(function (b) { b.onclick = function () { setR(b.dataset.m); }; });
   var ok = function (d) { meSave(d.token); meRender(d.data); };
-  $('#ml-go').onclick = function () { var b = this; busy(b, true, 'กำลังตรวจสอบ'); S.token = null; api('meLogin', cid ? { empCode: $('#ml-emp').value.trim(), cid: $('#ml-cid').value } : { empCode: $('#ml-emp').value.trim(), password: $('#ml-pw').value }).then(ok).catch(function (e) { busy(b, false); errToast(e); }); };
-  $('#ml-pw').onkeydown = function (e) { if (e.key === 'Enter') $('#ml-go').click(); };
+  $('#ml-go').onclick = function () {
+    var b = this, emp = $('#ml-emp').value.replace(/\D/g, '');
+    if (!/^\d{7}$/.test(emp)) { toast('กรุณากรอกรหัสพนักงาน 7 หลัก', 'warn'); $('#ml-emp').focus(); return; }
+    if (how === 'P' && !$('#ml-pw').value) { toast('กรุณากรอกรหัสผ่าน HR Connect', 'warn'); $('#ml-pw').focus(); return; }
+    if (how === 'C' && $('#ml-cid').value.replace(/\D/g, '').length !== 13) { toast('เลขบัตรประชาชนต้องมี 13 หลัก', 'warn'); $('#ml-cid').focus(); return; }
+    busy(b, true, 'กำลังตรวจสอบ'); S.token = null;
+    api('meLogin', how === 'C' ? { empCode: emp, cid: $('#ml-cid').value.replace(/\D/g, '') } : { empCode: emp, password: $('#ml-pw').value }).then(ok).catch(function (e) {
+      busy(b, false);
+      // สลับวิธีให้อัตโนมัติเมื่อระบบบอกว่าเลือกผิดทาง
+      if (how === 'P' && /ยังไม่เคยตั้งรหัสผ่าน|ใช้เลขบัตรประชาชน/.test(e.message)) { setHow('C'); $('#ml-cid').focus(); return toast('ท่านยังไม่เคยตั้งรหัสผ่าน HR Connect — กรอกเลขบัตรประชาชนแทนได้เลย', 'warn', 7000); }
+      if (how === 'C' && /ตั้งรหัสผ่าน.*แล้ว/.test(e.message)) { setHow('P'); $('#ml-pw').focus(); return toast('ท่านตั้งรหัสผ่าน HR Connect ไว้แล้ว — กรอกรหัสผ่านนั้นแทน', 'warn', 7000); }
+      errToast(e);
+    });
+  };
+  $('#ml-pw').onkeydown = $('#ml-cid').onkeydown = function (e) { if (e.key === 'Enter') $('#ml-go').click(); };
   $('#ml-rgo').onclick = function () {
     var b = this; S.token = null;
+    if (!/^R\d+$/i.test($('#ml-rid').value.trim())) return toast('เลขผู้พักขึ้นต้นด้วย R ตามด้วยตัวเลข (ดูจากกระดาษที่ฝ่ายอาคารให้)', 'warn');
     if (rmode === 'A' && $('#ml-rpw').value !== $('#ml-rpw2').value) return toast('รหัสผ่านทั้งสองช่องไม่ตรงกัน', 'warn');
     busy(b, true, 'กำลังตรวจสอบ');
-    (rmode === 'A' ? api('meActivate', { rid: $('#ml-rid').value.trim(), code: $('#ml-code').value.trim(), password: $('#ml-rpw').value }) : api('meLoginR', { rid: $('#ml-rid').value.trim(), password: $('#ml-rpw').value })).then(ok).catch(function (e) { busy(b, false); errToast(e); });
+    (rmode === 'A' ? api('meActivate', { rid: $('#ml-rid').value.trim().toUpperCase(), code: $('#ml-code').value.trim().toUpperCase(), password: $('#ml-rpw').value }) : api('meLoginR', { rid: $('#ml-rid').value.trim().toUpperCase(), password: $('#ml-rpw').value })).then(ok).catch(function (e) { busy(b, false); errToast(e); });
   };
+  try {
+    var last = localStorage.getItem('ubme_emp'); if (last) $('#ml-emp').value = last;
+    var lr = localStorage.getItem('ubme_rid'); if (lr) { $('#ml-rid').value = lr; setR('L'); }
+  } catch (e) { }
+  $('#ml-rid').onchange = function () { try { localStorage.setItem('ubme_rid', this.value.trim().toUpperCase()); } catch (e) { } };
+  $('#ml-emp').onchange = function () { try { localStorage.setItem('ubme_emp', this.value.replace(/\D/g, '')); } catch (e) { } };
 }
 
 /* ---------------------------------------------------------------- หน้าหลัก */

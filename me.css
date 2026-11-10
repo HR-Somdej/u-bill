@@ -24,3 +24,16 @@
 .me-item .me-share { font-family: var(--font-head); font-size: 18px; color: var(--accent-2); }
 .me-d { border-top: 1px solid var(--line); padding: 10px 0; } .me-d:first-child { border-top: 0; }
 @media (max-width: 420px) { .me-total .me-sum { grid-template-columns: 1fr 1fr; } .me-sum .t { grid-column: span 2; } }
+
+/* 10 พ.ย. 69: หน้าเข้าสู่ระบบแบบทีละขั้น */
+.me-step { display: flex; align-items: center; gap: 8px; } .me-step span { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; flex: none; } .me-step b { font-size: 15px; }
+.me-who-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.me-who-pick button { border: 1.5px solid var(--line-2); background: var(--surface); border-radius: 14px; padding: 12px 10px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 84px; }
+.me-who-pick button svg { width: 22px; height: 22px; color: var(--muted); } .me-who-pick button b { font-size: 14.5px; } .me-who-pick button small { font-size: 12px; color: var(--muted); }
+.me-who-pick button.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px rgba(11,132,198,.15); } .me-who-pick button.on svg { color: var(--accent); }
+.inp.lg { font-size: 18px; min-height: 50px; letter-spacing: .02em; }
+.me-help summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; list-style: none; } .me-help summary::-webkit-details-marker { display: none; }
+.me-help ul { margin: 10px 0 0; padding-left: 18px; } .me-help li { margin-bottom: 6px; }
+@media (max-width: 380px) { .me-who-pick { grid-template-columns: 1fr; } .me-who-pick button { min-height: 0; } }
+.me-step small { font-size: 12px; margin-left: auto; }
+#ml-how button { white-space: nowrap; font-size: 14px; } #ml-rt button { font-size: 13.5px; }

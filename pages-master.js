@@ -1,12 +1,13 @@
 /* SOMDEJ U-Bill — pages-master.js : ทะเบียนห้อง · มิเตอร์ · ผู้พัก (ย้ายเข้า/ย้ายออก) */
 PAGES.master = function () {
   var pg = shell('มิเตอร์ · ผู้จ่าย', 'ฝ่ายอาคารจัดการย้ายเข้า/ออกได้เอง · ค้นได้ทั้งชื่อและรหัส · ผู้จ่ายรหัส 7 หลักตรวจชื่อกับระบบบุคลากรอัตโนมัติ',
-    helpBtn('master') + '<button class="btn" id="m-api">' + ic('refresh') + ' ปรับชื่อทางการ (HRMi)</button><button class="btn" id="m-exp">' + ic('download') + ' ส่งออกทะเบียน</button><button class="btn" id="m-imp">' + ic('upload') + ' นำเข้าทะเบียนจากแม่แบบ</button><button class="btn primary" id="m-add">' + ic('plus') + ' เพิ่มมิเตอร์</button>');
+    helpBtn('master') + '<button class="btn amber" id="m-chk">' + ic('check') + ' ตรวจความถูกต้อง</button><button class="btn" id="m-api">' + ic('refresh') + ' ปรับชื่อทางการ (HRMi)</button><button class="btn" id="m-exp">' + ic('download') + ' ส่งออกทะเบียน</button><button class="btn" id="m-imp">' + ic('upload') + ' นำเข้าทะเบียนจากแม่แบบ</button><button class="btn primary" id="m-add">' + ic('plus') + ' เพิ่มมิเตอร์</button>');
   pg.innerHTML = loadingHtml();
   $('#m-imp').onclick = function () { importReadingsDialog('MASTER'); };
   $('#m-exp').onclick = function () { exportFile('MASTER', this); };
   $('#m-add').onclick = function () { meterDialog(null); };
   $('#m-api').onclick = function () { refreshNamesDialog(this); };
+  $('#m-chk').onclick = function () { registryDialog(function () { renderMaster(pg); }); };
   Promise.all([loadMaster(true), loadRound('')]).then(function () { bindReadings(); renderMaster(pg); }).catch(function (e) { pg.innerHTML = '<div class="note danger">' + esc(e.message) + '</div>'; });
 };
 function roomsOf(bld) {
@@ -31,6 +32,7 @@ function renderMaster(pg) {
     var rooms = roomsOf(P.mbld), q = (P.mq || '').trim();
     var nq = q.replace(/\s+/g, '');
     if (q) rooms = rooms.filter(function (r) { return String(r.room).indexOf(q) >= 0 || r.meters.some(function (m) { return m.curPayers.some(function (a) { return String(a.name).replace(/\s+/g, '').indexOf(nq) >= 0 || String(a.empCode).indexOf(q) >= 0 || String(a.rid).indexOf(q) >= 0; }); }); });
+    if (P.mf === 'MIS') rooms = rooms.filter(function (r) { return roomMismatch(r.meters); });
     if (P.mf === 'EMPTY') rooms = rooms.filter(function (r) { return r.meters.some(function (m) { return m.status === 'OCC' && !m.curPayers.length; }); });
     if (P.mf === 'NC') rooms = rooms.filter(function (r) { return r.meters.some(function (m) { return m.status !== 'OCC'; }); });
     if (P.mf === 'CASH') rooms = rooms.filter(function (r) { return r.meters.some(function (m) { return m.curPayers.some(function (a) { return a.payType === 'CASH'; }); }); });
@@ -44,7 +46,7 @@ function renderMaster(pg) {
       kpi('ไม่เรียกเก็บ', nf(all.filter(function (r) { return r.meters.some(function (m) { return m.status !== 'OCC'; }); }).length), 'ห้อง', 'ห้องเวร · ว่าง · นานาชาติ · ส่วนกลาง', 'var(--violet-soft)', 'info') + '</div>' +
       '<div class="card flat mt12"><div class="row"><select class="inp" id="mb" style="width:auto">' + S.boot.buildings.map(function (b) { return '<option value="' + b.id + '"' + (b.id === P.mbld ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('') + '<option value="*"' + (P.mbld === '*' ? ' selected' : '') + '>ทุกที่พัก</option></select>' +
       '<input class="inp" id="mq" placeholder="ค้นห้อง / ชื่อ-นามสกุล / รหัส" style="max-width:260px" value="' + esc(P.mq || '') + '">' +
-      '<div class="seg" id="mf">' + [['', 'ทั้งหมด'], ['EMPTY', 'ไม่มีผู้จ่าย'], ['NC', 'ไม่เรียกเก็บ'], ['CASH', 'เงินสด'], ['PEND', 'รอรหัส'], ['NF', 'ไม่พบใน API']].map(function (x) { return '<button data-f="' + x[0] + '" class="' + ((P.mf || '') === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="seg" id="mf">' + [['', 'ทั้งหมด'], ['MIS', 'น้ำ≠ไฟ'], ['EMPTY', 'ไม่มีผู้จ่าย'], ['NC', 'ไม่เรียกเก็บ'], ['CASH', 'เงินสด'], ['PEND', 'รอรหัส'], ['NF', 'ไม่พบใน API']].map(function (x) { return '<button data-f="' + x[0] + '" class="' + ((P.mf || '') === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       '<span class="grow"></span><span class="small muted">' + nf(rooms.length) + ' ห้อง</span></div></div>' +
       '<div class="tbl-wrap mt12"><table class="t"><thead><tr><th>ห้อง</th><th>ชั้น</th><th>มิเตอร์</th><th>ผู้จ่ายปัจจุบัน</th><th></th></tr></thead><tbody>' +
       shown.map(function (r) {
@@ -71,6 +73,9 @@ function roomDialog(key, redraw) {
   var html = '<div class="row between"><div class="small muted">' + esc(bldOf(room.bld).name) + ' · ชั้น ' + esc(room.floor || '-') + (room.zone ? ' · ' + esc(room.zone) : '') + ' · <span class="tag ' + st.s + '">' + st.t + '</span>' + (room.statusReason ? ' <span class="small">(' + esc(room.statusReason) + ')</span>' : '') + '</div>' +
     '<div class="row">' + helpBtn('room') + (room.meters.length ? '<button class="btn sm primary" id="rm-in">' + ic('login') + ' ย้ายเข้า</button>' : '') + '<button class="btn sm" id="rm-edit">' + ic('settings') + ' ข้อมูลห้อง</button><button class="btn sm" id="rm-addm">' + ic('plus') + ' เพิ่มมิเตอร์</button></div></div>' +
     '<dl class="kv mt8 small"><dt>ประเภทห้อง</dt><dd>' + esc(room.type || '-') + '</dd><dt>จำนวนเตียง</dt><dd>' + (room.beds != null && room.beds !== '' ? room.beds + ' เตียง · ว่าง ' + room.freeBeds : '-') + '</dd><dt>ห้องสำหรับ</dt><dd>' + ROOMGENDER_TH[room.gender || ''] + '</dd>' + (room.note ? '<dt>หมายเหตุ</dt><dd>' + esc(room.note) + '</dd>' : '') + '</dl>';
+  var mis = roomMismatch(room.meters);
+  if (mis) html += '<div class="note danger mt12">' + ic('alert') + '<div><b>ผู้จ่ายค่าน้ำกับค่าไฟของห้องนี้ไม่ตรงกัน</b>' + (mis.onlyW.length ? '<br>มีเฉพาะค่าน้ำ: ' + mis.onlyW.map(esc).join(', ') : '') + (mis.onlyE.length ? '<br>มีเฉพาะค่าไฟ: ' + mis.onlyE.map(esc).join(', ') : '') + (mis.status ? '<br>สถานะห้องไม่ตรงกัน: ' + esc(mis.status) : '') +
+    (mis.canSync ? '<div class="row mt8" style="flex-wrap:wrap"><span class="small">รายชื่อชุดไหนถูกต้อง?</span>' + mis.mains.map(function (m) { return '<button class="btn sm" data-sync="' + esc(m.id) + '">' + kindIc(m.kind) + ' ใช้ชุดของ' + KIND_TH[m.kind] + ' (' + m.curPayers.length + ' คน · ' + MST_TH[m.status] + ')</button>'; }).join('') + '</div>' : '<div class="tiny mt4">ห้องนี้มีมิเตอร์ย่อย/ห้องโถง — แก้ผู้จ่ายทีละมิเตอร์ด้านล่าง</div>') + '</div></div>';
   html += '<h4 class="mt16">' + ic('users') + ' ผู้พักปัจจุบัน (' + room.people.length + ')</h4>' + (room.people.length ? room.people.map(function (p) {
     return '<div class="card flat mt8" style="padding:10px 12px"><div class="row between"><div><b>' + esc(p.name) + '</b> <span class="tiny muted">' + esc(p.rid || '') + '</span> ' +
       (p.rtype === 'EMP' ? '<span class="tag ok">หักเงินเดือน ' + esc(p.empCode) + '</span>' : p.rtype === 'PENDING' ? '<span class="tag warn">รอรหัสพนักงาน</span>' : '<span class="tag elec">ชำระเงินสด' + (p.group ? ' · ' + esc(p.group) : '') + '</span>') +
@@ -81,7 +86,7 @@ function roomDialog(key, redraw) {
       (p.rtype !== 'EMP' ? '<button class="btn sm amber" data-code="' + esc(p.rid) + '" title="' + (p.rtype === 'PENDING' ? 'ได้รหัสพนักงานแล้ว' : 'บันทึกผิดเป็นเงินสด แต่เป็นบุคลากร → เปลี่ยนเป็นหักเงินเดือน') + '">' + ic('key') + ' ใส่รหัส</button>' : '') +
       (p.rtype !== 'EMP' ? '<button class="btn sm" data-act="' + esc(p.rid) + '" title="ออกรหัสให้ผู้พักเข้าดูยอดของตนเอง">' + ic('link') + ' รหัสดูยอด' + (p.acct === 'SET' ? ' ✓' : '') + '</button>' : '') +
       '<button class="btn sm" data-leave="' + esc(p.rid) + '">' + ic('calendar') + ' พักการเรียกเก็บ</button><button class="btn sm" data-res="' + esc(p.rid) + '">' + ic('user') + '</button>' +
-      '<button class="btn sm warn" data-outp="' + esc(p.rid) + '">' + ic('out') + ' ย้ายออก</button></div></div></div>';
+      '<button class="btn sm warn" data-outp="' + esc(p.rid) + '">' + ic('out') + ' ย้ายออก</button><button class="btn sm ghost" data-delp="' + esc(p.rid) + '" title="บันทึกผิดคน/ผิดห้อง — ลบออกทั้งน้ำและไฟ ไม่คิดเงินวันใดเลย">' + ic('trash') + ' ลบ (บันทึกผิด)</button></div></div></div>';
   }).join('') : '<div class="muted small mt8">ไม่มีผู้พัก</div>');
   html += '<h4 class="mt16">' + ic('gauge') + ' มิเตอร์และผู้จ่าย</h4>';
   room.meters.forEach(function (m) {
@@ -108,7 +113,9 @@ function roomDialog(key, redraw) {
       $$('[data-out]', el).forEach(function (b) { b.onclick = function () { moveOutDialog(b.dataset.out, room, after); }; });
       $$('[data-outp]', el).forEach(function (b) { b.onclick = function () { var a = S.master.assigns.filter(function (x) { return x.rid === b.dataset.outp && !x.endDate && room.meters.some(function (m) { return m.id === x.meterId; }); })[0]; if (a) moveOutDialog(a.id, room, after); }; });
       $$('[data-ea]', el).forEach(function (b) { b.onclick = function () { editAssignDialog(b.dataset.ea, after); }; });
-      $$('[data-da]', el).forEach(function (b) { b.onclick = function () { confirmBox('ลบรายการผู้จ่าย', 'ใช้กรณีบันทึกผิดเท่านั้น (ถ้าย้ายออกจริง ให้กด "ย้ายออก" เพื่อเก็บประวัติ)', 'ลบ', 'danger').then(function (y) { if (y) api('deleteAssign', { assignIds: [b.dataset.da] }).then(after).catch(errToast); }); }; });
+      $$('[data-da]', el).forEach(function (b) { b.onclick = function () { delAssignConfirm(b.dataset.da, after); }; });
+      $$('[data-delp]', el).forEach(function (b) { b.onclick = function () { var a = S.master.assigns.filter(function (x) { return x.rid === b.dataset.delp && !x.endDate && room.meters.some(function (m) { return m.id === x.meterId; }); })[0]; if (a) delAssignConfirm(a.id, after); }; });
+      $$('[data-sync]', el).forEach(function (b) { b.onclick = function () { syncRoomConfirm(b.dataset.sync, after); }; });
       $$('[data-leave]', el).forEach(function (b) { b.onclick = function () { leaveDialog(b.dataset.leave, after); }; });
       $$('[data-res]', el).forEach(function (b) { b.onclick = function () { residentDialog(b.dataset.res, after); }; });
       $$('[data-code]', el).forEach(function (b) { b.onclick = function () { assignCodeDialog(b.dataset.code, after); }; });
@@ -159,7 +166,8 @@ function moveInDialog(room, after) {
       '<div class="field"><label class="f">เพศ</label><select class="inp" id="mi-g"><option value="">-</option><option value="F">หญิง</option><option value="M">ชาย</option></select></div>' +
       '<div class="field"><label class="f">ตำแหน่ง</label><input class="inp" id="mi-pos"></div><div class="field"><label class="f">ฝ่าย / สังกัด</label><input class="inp" id="mi-div"></div>' +
       '<div class="field" id="mi-grp-f"><label class="f">กลุ่ม</label><input class="inp" id="mi-grp" list="mi-grpl"><datalist id="mi-grpl">' + groups.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('') + '</datalist></div><div class="field" id="mi-ref-f"><label class="f">รหัสนิสิต/อ้างอิง (ถ้ามี)</label><input class="inp" id="mi-ref"></div></div></div>' +
-      '<div class="field"><label class="f">มิเตอร์ที่ต้องจ่าย</label>' + room.meters.map(function (m) { return '<label class="check" style="margin-right:14px"><input type="checkbox" class="mi-m" value="' + esc(m.id) + '" ' + (m.label !== 'ห้องโถง' ? 'checked' : '') + '> ' + kindIc(m.kind) + ' ' + KIND_TH[m.kind] + (m.label !== '1' ? ' (' + esc(m.label) + ')' : '') + '</label>'; }).join('') + '</div>' +
+      '<div class="field"><label class="f">มิเตอร์ที่ต้องจ่าย</label>' + room.meters.map(function (m) { var main = isMainMeter(m); return '<label class="check" style="margin-right:14px"><input type="checkbox" class="mi-m" value="' + esc(m.id) + '" ' + (m.label !== 'ห้องโถง' ? 'checked' : '') + (main ? ' disabled' : '') + '> ' + kindIc(m.kind) + ' ' + KIND_TH[m.kind] + (m.label !== '1' ? ' (' + esc(m.label) + ')' : '') + '</label>'; }).join('') +
+        '<div class="help">ค่าน้ำและค่าไฟของห้องเดียวกันบันทึกพร้อมกันเสมอ (ผู้จ่ายชุดเดียวกัน) · มิเตอร์ย่อย/ห้องโถงเลือกเองได้</div></div>' +
       '<div class="grid g2"><div class="field"><label class="f">วันที่ย้ายเข้า (วันแรกที่พัก)</label><input class="inp" type="date" id="mi-start" value="' + today() + '"><div class="help">ค่าน้ำ/ไฟเดือนแรกคิดตามจำนวนวันที่พัก</div></div><div class="field"><label class="f">หมายเหตุ</label><input class="inp" id="mi-note"></div></div>',
     buttons: [{ label: 'ยกเลิก' }, { label: ic('login') + ' บันทึกย้ายเข้า', cls: 'primary', onClick: function () {
       var t = $('#mi-t .on').dataset.t, ids = $$('.mi-m').filter(function (x) { return x.checked; }).map(function (x) { return x.value; });
@@ -208,10 +216,10 @@ function moveOutDialog(assignId, room, after) {
   var same = []; room.meters.forEach(function (m) { m.payers.forEach(function (x) { if (!x.endDate && (x.id === a.id || (a.rid && x.rid === a.rid) || (!a.rid && a.payType === 'EMP' && x.empCode === a.empCode))) same.push({ x: x, m: m }); }); });
   modal({ title: 'ย้ายออก · ' + esc(a.name),
     body: '<div class="field"><label class="f">วันที่ย้ายออก (วันสุดท้ายที่พัก)</label><input class="inp" type="date" id="mo-end" value="' + today() + '"></div>' +
-      '<div class="field"><label class="f">มิเตอร์</label>' + same.map(function (s) { return '<label class="check" style="margin-right:14px"><input type="checkbox" class="mo-a" value="' + s.x.id + '" checked> ' + kindIc(s.m.kind) + ' ' + KIND_TH[s.m.kind] + (s.m.label !== '1' ? ' (' + esc(s.m.label) + ')' : '') + '</label>'; }).join('') + '</div><div class="field"><label class="f">เหตุผล / หมายเหตุ</label><input class="inp" id="mo-note" list="mo-nl" placeholder="เช่น ลาออก / ย้ายไปหอเทพฯ"><datalist id="mo-nl"><option>ลาออก</option><option>ย้ายห้อง</option><option>ย้ายไปพักนอก รพ.</option><option>ครบกำหนดฝึก/ศึกษา</option><option>เกษียณ</option></datalist></div>' +
-      '<p class="tiny muted">ถ้า "ลาศึกษา / ลาไม่รับเงินเดือน" แต่ยังมีชื่อในห้อง ไม่ต้องย้ายออก — ใช้ปุ่ม "พักการเรียกเก็บ" แทน</p>',
+      '<div class="field"><label class="f">มิเตอร์</label>' + same.map(function (s) { return '<label class="check" style="margin-right:14px"><input type="checkbox" class="mo-a" value="' + s.x.id + '" checked disabled> ' + kindIc(s.m.kind) + ' ' + KIND_TH[s.m.kind] + (s.m.label !== '1' ? ' (' + esc(s.m.label) + ')' : '') + '</label>'; }).join('') + '</div><div class="field"><label class="f">เหตุผล / หมายเหตุ</label><input class="inp" id="mo-note" list="mo-nl" placeholder="เช่น ลาออก / ย้ายไปหอเทพฯ"><datalist id="mo-nl"><option>ลาออก</option><option>ย้ายห้อง</option><option>ย้ายไปพักนอก รพ.</option><option>ครบกำหนดฝึก/ศึกษา</option><option>เกษียณ</option></datalist></div>' +
+      '<p class="tiny muted">ย้ายออก = ออกจากห้องนี้ทุกมิเตอร์ (น้ำ + ไฟ) พร้อมกัน · ถ้า "ลาศึกษา / ลาไม่รับเงินเดือน" แต่ยังมีชื่อในห้อง ไม่ต้องย้ายออก — ใช้ปุ่ม "พักการเรียกเก็บ" แทน · ถ้า <b>บันทึกผิดคน/ผิดห้อง</b> ให้ปิดหน้านี้แล้วกด "ลบ (บันทึกผิด)" (ไม่คิดเงินวันใดเลย)</p>',
     buttons: [{ label: 'ยกเลิก' }, { label: ic('out') + ' บันทึกย้ายออก', cls: 'warn', onClick: function () {
-      return api('moveOut', { assignIds: $$('.mo-a').filter(function (x) { return x.checked; }).map(function (x) { return x.value; }), endDate: $('#mo-end').value, note: $('#mo-note').value.trim() }).then(function (d) { toast('บันทึกย้ายออกแล้ว', 'ok'); after(d); });
+      return api('moveOut', { assignIds: $$('.mo-a').map(function (x) { return x.value; }), endDate: $('#mo-end').value, note: $('#mo-note').value.trim() }).then(function (d) { toast('บันทึกย้ายออกแล้ว', 'ok'); after(d); });
     } }] });
 }
 function leaveDialog(rid, after) {
@@ -241,11 +249,11 @@ function residentDialog(rid, after) {
 function assignCodeDialog(rid, after) {
   var r = resOf(rid), held = (S.master.held || {})[rid] || 0;
   modal({ title: 'ใส่รหัสพนักงาน · ' + esc(r.name),
-    body: '<p class="small">' + (r.rtype === 'CASH' ? 'ใช้เมื่อผู้พักคนนี้<b>เป็นบุคลากร</b> แต่ถูกบันทึกเป็น "ชำระเงินสด" — เลือกชื่อจากทะเบียนบุคลากร (หรือพิมพ์รหัส 7 หลัก) ' : 'เมื่อพนักงานใหม่ได้รหัสใน HRMi แล้ว ใส่รหัสที่นี่ ') + 'ระบบจะตรวจกับ SmartAPI เปลี่ยนชื่อเป็นชื่อทางการ และเปลี่ยนเป็น "หักเงินเดือน" ทุกมิเตอร์ · ประวัติการพักเดิมยังอยู่ · มีผลกับรอบที่ยังไม่ล็อก</p>' +
+    body: '<p class="small">' + (r.rtype === 'CASH' ? 'ใช้เมื่อผู้พักคนนี้<b>เป็นบุคลากร</b> แต่ถูกบันทึกเป็น "ชำระเงินสด" — เลือกชื่อจากทะเบียนบุคลากร (หรือพิมพ์รหัส 7 หลัก) ' : 'เมื่อพนักงานใหม่ได้รหัสใน HRMi แล้ว ใส่รหัสที่นี่ ') + 'ระบบจะตรวจกับ SmartAPI เปลี่ยนชื่อเป็นชื่อทางการ และเปลี่ยนเป็น "หักเงินเดือน" ทุกมิเตอร์ · ประวัติการพักเดิมยังอยู่ · มีผลกับรอบที่ยังไม่ล็อก<br><b>ถ้ารหัสนี้มีในทะเบียนผู้พักอยู่แล้ว</b> (เช่น ค่าน้ำมีรหัส แต่ค่าไฟเป็นเงินสด) ระบบจะรวมเป็นคนเดียวกันให้เอง ไม่ต้องย้ายออก/ลบ</p>' +
       (held ? '<div class="note warn">' + ic('cash') + '<div>มียอดที่พักไว้ระหว่างรอรหัส <b>' + baht(held) + ' บาท</b> — จะรวมหักย้อนหลังในรอบถัดไปที่ HR ล็อก</div></div>' : '') +
       '<div class="field mt12"><label class="f">ค้นชื่อ หรือ รหัส 7 หลัก</label><input class="inp" id="ac-q" value="' + esc(stripTitle(r.name)) + '"><div id="ac-res" class="pick"></div></div><div class="field"><label class="f">รหัสพนักงาน</label><input class="inp" id="ac-c" inputmode="numeric" maxlength="7" style="max-width:180px"></div>',
     buttons: [{ label: 'ยกเลิก' }, { label: ic('check') + ' ตรวจและบันทึก', cls: 'primary', onClick: function () {
-      return api('assignCode', { rid: rid, empCode: $('#ac-c').value.trim() }).then(function (d) { toast('บันทึกรหัสแล้ว: ' + d.name + (d.held ? ' · ยอดพักไว้ ' + baht(d.held) + ' บาท จะหักในรอบถัดไป' : ''), 'ok', 7000); after(d); });
+      return api('assignCode', { rid: rid, empCode: $('#ac-c').value.trim() }).then(function (d) { toast((d.merged ? 'รวมเป็นคนเดียวกับ ' + d.name + ' แล้ว — ค่าน้ำ/ค่าไฟใช้รหัสเดียวกัน' : 'บันทึกรหัสแล้ว: ' + d.name) + (d.held ? ' · ยอดพักไว้ ' + baht(d.held) + ' บาท จะหักในรอบถัดไป' : ''), 'ok', 7000); after(d); });
     } }],
     onOpen: function (el) {
       var run = function () { var L = searchPeople($('#ac-q', el).value, { residents: false }); $('#ac-res', el).innerHTML = L.slice(0, 10).map(function (x) { return '<button type="button" data-c="' + x.empCode + '"><b>' + esc(x.name) + '</b> <span class="muted">' + x.empCode + '</span><div class="tiny muted">' + [x.position, x.division].filter(Boolean).map(esc).join(' · ') + '</div></button>'; }).join(''); $$('#ac-res button', el).forEach(function (b) { b.onclick = function () { $('#ac-c', el).value = b.dataset.c; $('#ac-res', el).innerHTML = ''; }; }); };
@@ -298,7 +306,7 @@ function editAssignDialog(id, after) {
   var a = S.master.assigns.filter(function (x) { return x.id === id; })[0];
   modal({ title: 'แก้ไขผู้จ่าย · ' + esc(a.name),
     body: (a.payType === 'CASH' ? '<div class="field"><label class="f">ชื่อ</label><input class="inp" id="ea-name" value="' + esc(a.name) + '"></div>' : '') +
-      '<div class="grid g2"><div class="field"><label class="f">ย้ายเข้า</label><input class="inp" type="date" id="ea-s" value="' + esc(a.startDate) + '"></div><div class="field"><label class="f">ย้ายออก (ว่าง = ยังพักอยู่)</label><input class="inp" type="date" id="ea-e" value="' + esc(a.endDate || '') + '"></div></div><div class="field"><label class="f">หมายเหตุ</label><input class="inp" id="ea-n" value="' + esc(a.note || '') + '"></div>',
+      '<div class="note info">' + ic('info') + '<div>แก้วันที่แล้ว รายการเดียวกันของผู้พักคนนี้ในค่าน้ำ/ค่าไฟของห้องนี้จะเปลี่ยนตามอัตโนมัติ</div></div><div class="grid g2"><div class="field"><label class="f">ย้ายเข้า</label><input class="inp" type="date" id="ea-s" value="' + esc(a.startDate) + '"></div><div class="field"><label class="f">ย้ายออก (ว่าง = ยังพักอยู่)</label><input class="inp" type="date" id="ea-e" value="' + esc(a.endDate || '') + '"></div></div><div class="field"><label class="f">หมายเหตุ</label><input class="inp" id="ea-n" value="' + esc(a.note || '') + '"></div>',
     buttons: [{ label: 'ยกเลิก' }, { label: 'บันทึก', cls: 'primary', onClick: function () {
       return api('saveAssign', { assign: { id: id, startDate: $('#ea-s').value, endDate: $('#ea-e').value, note: $('#ea-n').value, name: $('#ea-name') ? $('#ea-name').value : null } }).then(function (d) { toast('บันทึกแล้ว', 'ok'); after(d); });
     } }] });
@@ -327,4 +335,75 @@ function refreshNamesDialog(btn) {
         (d.diffs.length ? '<div class="tbl-wrap mt12" style="max-height:340px"><table class="t"><thead><tr><th>รหัส</th><th>ชื่อในทะเบียน</th><th>ชื่อจากระบบบุคลากร</th></tr></thead><tbody>' + d.diffs.map(function (x) { return '<tr><td>' + esc(x.empCode) + '</td><td>' + esc(x.old) + '</td><td><b>' + esc(x.api) + '</b></td></tr>'; }).join('') + '</tbody></table></div>' : ''),
       buttons: d.diffs.length ? [{ label: 'ปิด' }, { label: 'ปรับเป็นชื่อทางการทั้งหมด (หมายเหตุในวงเล็บย้ายไปช่องหมายเหตุ)', cls: 'primary', onClick: function () { return api('refreshNames', { apply: true }).then(function () { toast('แก้ชื่อแล้ว', 'ok'); S.master = null; route(); }); } }] : [{ label: 'ปิด', cls: 'primary', onClick: function () { S.master = null; route(); } }] });
   }).catch(function (e) { busy(btn, false); errToast(e); });
+}
+
+/* ---------------------------------------------------------------- 10 พ.ย. 69: น้ำ = ไฟ ของห้องเดียวกัน */
+function isMainMeter(m) { return !/โถง|^H$/i.test(String(m.label || '')) && String(m.label || '1') === '1'; }
+/** เทียบรายชื่อผู้จ่ายปัจจุบันรวมทุกมิเตอร์ของค่าน้ำกับค่าไฟ · คืน null ถ้าตรงกัน */
+function roomMismatch(ms) {
+  var set = { W: {}, E: {} }, has = { W: 0, E: 0 }, nm = {};
+  ms.forEach(function (m) { has[m.kind] = 1; (m.curPayers || []).forEach(function (a) { var k = a.rid || a.empCode || a.name; set[m.kind][k] = 1; nm[k] = a.name + (a.payType === 'EMP' ? ' (' + a.empCode + ')' : a.payType === 'PENDING' ? ' (รอรหัส)' : ' (เงินสด)'); }); });
+  var mains = ms.filter(isMainMeter), sts = {}; mains.forEach(function (m) { sts[m.status] = 1; });
+  var stMis = Object.keys(sts).length > 1, both = has.W && has.E;
+  var onlyW = both ? Object.keys(set.W).filter(function (k) { return !set.E[k]; }) : [], onlyE = both ? Object.keys(set.E).filter(function (k) { return !set.W[k]; }) : [];
+  if (!onlyW.length && !onlyE.length && !stMis) return null;
+  return { onlyW: onlyW.map(function (k) { return nm[k]; }), onlyE: onlyE.map(function (k) { return nm[k]; }), mains: mains,
+    status: stMis ? mains.map(function (m) { return KIND_TH[m.kind] + ' = ' + MST_TH[m.status]; }).join(' · ') : '', canSync: mains.length >= 2 && mains.length === ms.length };
+}
+function delAssignConfirm(id, after) {
+  var a = S.master.assigns.filter(function (x) { return x.id === id; })[0] || {};
+  confirmBox('ลบรายการผู้จ่าย (บันทึกผิด)', '<b>' + esc(a.name || '') + '</b> จะถูกลบออกจาก<b>ทั้งค่าน้ำและค่าไฟ</b>ของห้องนี้ในช่วงเดียวกัน — ไม่คิดเงินวันใดเลย<br><span class="small muted">ใช้กรณีบันทึกผิดคน/ผิดห้องเท่านั้น · ถ้าย้ายออกจริง ให้กด "ย้ายออก" เพื่อเก็บประวัติและคิดเงินตามวันที่พัก</span>', 'ลบ', 'danger').then(function (y) {
+    if (y) api('deleteAssign', { assignIds: [id] }).then(function (d) { toast('ลบแล้ว ' + d.removed + ' รายการ (น้ำ/ไฟ)', 'ok'); after(d); }).catch(errToast);
+  });
+}
+function syncRoomConfirm(meterId, after) {
+  var m = S.master.byId[meterId];
+  confirmBox('ทำให้ค่าน้ำ–ค่าไฟตรงกัน', 'ใช้รายชื่อผู้จ่ายและสถานะห้องของ<b>' + KIND_TH[m.kind] + '</b> (' + ((m.curPayers || []).map(function (a) { return esc(a.name); }).join(', ') || 'ไม่มีผู้จ่าย') + ') กับมิเตอร์หลักทุกตัวของห้อง ' + esc(m.room) + '<br><span class="small muted">แก้เฉพาะช่วงรอบที่ยังไม่ล็อก · ประวัติรอบที่ล็อกแล้วไม่เปลี่ยน · บันทึกในประวัติการใช้งาน</span>', 'ทำให้ตรงกัน').then(function (y) {
+    if (y) api('syncRoom', { meterId: meterId }).then(function (d) { toast('ทำให้ตรงกันแล้ว', 'ok'); after(d); }).catch(errToast);
+  });
+}
+/** ตรวจความถูกต้องทะเบียนของรอบปัจจุบัน: น้ำ≠ไฟ · สถานะไม่ตรง · ชื่อซ้อน 2 ห้อง · คนเดียวกันบันทึก 2 แบบ */
+function registryHtml(d) {
+  var I = d.issues, T = { MISMATCH: [], STATUS: [], OVERLAP: [], DUP: [] };
+  var seenOv = {};
+  I.forEach(function (x) {
+    if (x.t === 'OVERLAP') { var k = x.name + '|' + x.stays.map(function (q) { return q[0] + q[1]; }).sort().join('|'); if (seenOv[k]) return; seenOv[k] = 1; }   // น้ำ/ไฟ ของคู่ห้องเดียวกันแสดงแถวเดียว (ลบแล้วหายทั้งคู่)
+    (T[x.t] = T[x.t] || []).push(x);
+  });
+  var mainOf = function (x, k) { return x.meters.map(function (id) { return S.master.byId[id]; }).filter(function (m) { return m && m.kind === k && isMainMeter(m); })[0]; };
+  var h = '<p class="small muted">ตรวจช่วง ' + thDate(d.from, false) + ' – ' + thDate(d.to, false) + (d.round ? ' (รอบหักเงิน ' + esc(d.round) + ')' : '') + '</p>';
+  if (!I.length) return h + emptyHtml('ทะเบียนถูกต้อง ไม่พบรายการที่ต้องแก้', 'check');
+  h += '<h4 class="mt12">' + ic('alert') + ' ผู้จ่ายค่าน้ำ ≠ ค่าไฟ (' + T.MISMATCH.length + ')</h4>' + (T.MISMATCH.length ? '<div class="tbl-wrap mt8"><table class="t"><thead><tr><th>ห้อง</th><th>มีเฉพาะค่าน้ำ</th><th>มีเฉพาะค่าไฟ</th><th></th></tr></thead><tbody>' + T.MISMATCH.map(function (x) {
+    var w = mainOf(x, 'W'), e = mainOf(x, 'E');
+    return '<tr><td><b>' + esc(x.room) + '</b><div class="tiny muted">' + esc(x.bldName) + '</div></td><td class="small">' + (x.onlyW.map(esc).join('<br>') || '-') + '</td><td class="small">' + (x.onlyE.map(esc).join('<br>') || '-') + '</td><td class="nowrap">' +
+      (x.canSync && w && e ? '<button class="btn sm" data-rs="' + esc(w.id) + '">' + kindIc('W') + ' ใช้ชุดค่าน้ำ</button> <button class="btn sm" data-rs="' + esc(e.id) + '">' + kindIc('E') + ' ใช้ชุดค่าไฟ</button> ' : '') + '<button class="btn sm ghost" data-ro="' + esc(x.bld + '|' + x.room) + '">เปิดห้อง</button></td></tr>';
+  }).join('') + '</tbody></table></div>' : '<div class="small muted">ไม่มี</div>');
+  if (T.STATUS.length) h += '<h4 class="mt16">' + ic('info') + ' สถานะห้องของมิเตอร์น้ำ/ไฟไม่ตรงกัน (' + T.STATUS.length + ')</h4><div class="tbl-wrap mt8"><table class="t"><tbody>' + T.STATUS.map(function (x) {
+    return '<tr><td><b>' + esc(x.room) + '</b> <span class="tiny muted">' + esc(x.bldName) + '</span></td><td class="small">' + x.statuses.map(function (s) { return KIND_TH[s[0]] + ' = ' + MST_TH[s[1]]; }).join(' · ') + '</td><td class="nowrap">' + x.meters.map(function (id) { var m = S.master.byId[id]; return m ? '<button class="btn sm" data-rs="' + esc(id) + '">ใช้ของ' + KIND_TH[m.kind] + '</button> ' : ''; }).join('') + '<button class="btn sm ghost" data-ro="' + esc(x.bld + '|' + x.room) + '">เปิดห้อง</button></td></tr>';
+  }).join('') + '</tbody></table></div>';
+  h += '<h4 class="mt16">' + ic('users') + ' ผู้พักมีชื่อ 2 ห้องในวันเดียวกัน (' + T.OVERLAP.length + ')</h4>' + (T.OVERLAP.length ? '<p class="tiny muted">มักเกิดจากการ "ย้ายออก" แทนการลบ ทำให้ถูกคิดเงินห้องเดิม 1 วัน — กดลบที่ห้องที่ไม่ได้พักจริง (ลบทั้งน้ำและไฟ)</p><div class="tbl-wrap mt8"><table class="t"><thead><tr><th>ผู้พัก</th><th>ห้อง ก</th><th>ห้อง ข</th></tr></thead><tbody>' + T.OVERLAP.map(function (x) {
+    var cell = function (st) { return '<b>' + esc(st[1]) + '</b> <span class="tiny muted">' + esc(st[0]) + '</span><div class="tiny">' + thDate(st[2], false) + ' – ' + (st[3] ? thDate(st[3], false) : 'พักอยู่') + ' · คิดในรอบนี้ <b>' + st[4] + ' วัน</b></div><button class="btn sm ghost mt4" data-dela="' + esc(st[5]) + '">' + ic('trash') + ' ลบห้องนี้ (บันทึกผิด)</button>'; };
+    return '<tr><td class="small">' + esc(x.name) + '</td><td>' + cell(x.stays[0]) + '</td><td>' + cell(x.stays[1]) + '</td></tr>';
+  }).join('') + '</tbody></table></div>' : '<div class="small muted">ไม่มี</div>');
+  h += '<h4 class="mt16">' + ic('key') + ' คนเดียวกันถูกบันทึก 2 แบบ (' + T.DUP.length + ')</h4>' + (T.DUP.length ? '<div class="tbl-wrap mt8"><table class="t"><tbody>' + T.DUP.map(function (x) {
+    return '<tr><td class="small">' + esc(x.name) + ' <span class="tag elec">' + esc(RTYPE_TH[x.rtype] || '') + '</span><br>= ' + esc(x.intoName) + ' <span class="tag ok">' + esc(x.intoEmp) + '</span></td><td class="nowrap"><button class="btn sm primary" data-mg="' + esc(x.rid) + '" data-emp="' + esc(x.intoEmp) + '">' + ic('check') + ' รวมเป็นคนเดียว</button></td></tr>';
+  }).join('') + '</tbody></table></div>' : '<div class="small muted">ไม่มี</div>');
+  return h;
+}
+function registryDialog(redraw) {
+  modal({ title: 'ตรวจความถูกต้องทะเบียน (น้ำ–ไฟ · ผู้พัก)', wide: true, body: loadingHtml('กำลังตรวจทุกห้อง…'), buttons: [{ label: 'ปิด' }], noFocus: true,
+    onOpen: function (el, close) {
+      var box = $('.mb', el);
+      var load = function () {
+        api('checkRegistry', { toToday: true }).then(function (d) {
+          box.innerHTML = registryHtml(d);
+          var done = function (r) { if (r && r.master) setMaster(r.master); load(); if (redraw) redraw(); };
+          $$('[data-rs]', box).forEach(function (b) { b.onclick = function () { syncRoomConfirm(b.dataset.rs, done); }; });
+          $$('[data-ro]', box).forEach(function (b) { b.onclick = function () { close(); roomDialog(b.dataset.ro, redraw); }; });
+          $$('[data-dela]', box).forEach(function (b) { b.onclick = function () { delAssignConfirm(b.dataset.dela, done); }; });
+          $$('[data-mg]', box).forEach(function (b) { b.onclick = function () { busy(b, true, 'กำลังรวม'); api('assignCode', { rid: b.dataset.mg, empCode: b.dataset.emp }).then(function (r) { toast('รวมเป็นคนเดียวแล้ว', 'ok'); done(r); }).catch(function (e) { busy(b, false); errToast(e); }); }; });
+        }).catch(function (e) { box.innerHTML = '<div class="note danger">' + esc(e.message) + '</div>'; });
+      };
+      load();
+    } });
 }

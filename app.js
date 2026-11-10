@@ -1,7 +1,7 @@
 /* SOMDEJ U-Bill — app.js : แกนกลาง (เรียกหลังบ้าน · ล็อกอิน · โครงหน้า · เส้นทาง · UI กลาง)
  * เลขรุ่นต้องตรงกับ Config.gs และ version.json */
-var UB_BUILD = '2569-11-08.1';
-var UB_API_BUILD = '2569-11-08.1';
+var UB_BUILD = '2569-11-10.1';
+var UB_API_BUILD = '2569-11-10.1';
 var UB_VERSION = '1.2569';
 
 var S = { token: null, boot: null, me: null, master: null, round: null, readings: {}, route: '' };
@@ -67,6 +67,8 @@ var ICONS = {
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
   alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  id: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14 10h4M14 13h3"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.6-.8 1.1V14"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/>',
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',

@@ -85,7 +85,7 @@ var XIO = (function () {
     XLSX.utils.book_append_sheet(wb, sheet(H.concat([pcols]).concat(d.persons.filter(function (p) { return p.payType === 'PENDING'; }).sort(sortP).map(prow)), W13), 'รอรหัส (พักยอด)');
     // 3) แจ้งเตือน
     var al = H.concat([['ประเภท', 'ที่พัก', 'ห้อง', 'มิเตอร์', 'ชนิด', 'รายละเอียด', 'เลขก่อน', 'เลขหลัง', 'หน่วยใช้', 'ยอด']]);
-    var AT = { ERR: 'ผิดพลาด', UNASSIGNED: 'ไม่มีผู้รับผิดชอบ', HIGH: 'ใช้สูงผิดปกติ', ZERO: 'ใช้ 0', MISS: 'ยังไม่จด' };
+    var AT = { ERR: 'ผิดพลาด', UNASSIGNED: 'ไม่มีผู้รับผิดชอบ', HIGH: 'ใช้สูงผิดปกติ', ZERO: 'ใช้ 0', MISS: 'ยังไม่จด', MISMATCH: 'ค่าน้ำ≠ค่าไฟ', OVERLAP: 'ชื่อซ้อน 2 ห้อง', DUP: 'คนเดียวกัน 2 แบบ' };
     d.meters.forEach(function (m) { m.alerts.forEach(function (a) { al.push([KTH[m.kind], bldOf(m.bld).name, m.room, m.label, AT[a.t] || a.t, a.m, m.prev, m.broken ? 'เสีย' : m.curr, m.usage, m.amount]); }); });
     XLSX.utils.book_append_sheet(wb, sheet(al, [8, 24, 10, 8, 16, 60, 10, 10, 10, 10]), 'แจ้งเตือน');
     // 4) รายมิเตอร์
