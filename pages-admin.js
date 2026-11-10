@@ -78,11 +78,13 @@ function renderSettings(pg, d) {
     '<div class="card"><h3>' + ic('users') + ' ทะเบียนบุคลากร (สำหรับค้นด้วยชื่อ)</h3><p class="small muted">นำเข้าไฟล์รายชื่อบุคลากรที่ส่งออกจาก HRMi (คอลัมน์ EmpCode, FullName, PositionName, DivisionName …) เพื่อให้ฝ่ายอาคารพิมพ์ชื่อค้นหาได้ · <b>ระบบตัดคอลัมน์เลขบัตรประชาชนและข้อมูลอื่นทิ้งในเครื่องของท่าน ก่อนส่งขึ้นระบบ</b> · แนะนำนำเข้าเดือนละครั้ง</p>' +
     '<div class="row"><label class="btn' + (hr ? '' : ' disabled') + '">' + ic('upload') + ' เลือกไฟล์รายชื่อ HRMi (.xls/.xlsx)<input type="file" id="st-sf" accept=".xls,.xlsx" class="sr" ' + dis + '></label><span id="st-si" class="small muted"></span></div><div id="st-sp" class="mt8"></div>' +
     (hr ? '<h3 class="mt16">' + ic('shield') + ' บันทึกการเปิดดูข้อมูลส่วนบุคคล (PDPA)</h3><button class="btn sm" id="st-pl">' + ic('history') + ' ดูบันทึก</button>' : '') + '</div></div>' +
+    notifySettingsHtml(s, dis) +
     (hr ? '<div class="stickybar row"><span class="grow"></span><button class="btn primary" id="st-save">' + ic('check') + ' บันทึกการตั้งค่า</button></div>' : '') +
     '<div class="card mt16"><div class="ch"><h3>' + ic('building') + ' ที่พัก</h3>' + (hr ? '<button class="btn sm" id="st-badd">' + ic('plus') + ' เพิ่มที่พัก</button>' : '') + '</div><div class="tbl-wrap" style="max-height:none"><table class="t"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>ชื่อย่อ</th><th>ชื่อไฟล์ Import HRMi</th><th class="n">ลำดับ</th><th></th></tr></thead><tbody>' +
     d.buildings.map(function (b) { return '<tr><td>' + esc(b.id) + '</td><td>' + esc(b.name) + '</td><td>' + esc(b.short) + '</td><td>' + esc(b.hrmiName) + '.xls</td><td class="n">' + b.sort + '</td><td>' + (hr ? '<button class="btn sm" data-b="' + b.id + '">' + ic('edit') + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div></div>' +
     (hr ? '<div class="card mt16"><h3>' + ic('upload') + ' นำเข้าประวัติจากไฟล์เดิม (แดชบอร์ด ปี 2568–2569)</h3><p class="small muted">เลือก<b>โฟลเดอร์ปี</b> (เช่น <code>03.เงินหัก 3rd party-สมเด็จฯ/2568</code> แล้วทำซ้ำกับ 2569) ระบบอ่านไฟล์ค่าน้ำ/ค่าไฟของทุกเดือนในเครื่องของท่าน (ไม่อัปโหลดไฟล์) ใช้ไฟล์ในโฟลเดอร์ "3.เงินหักสรุป…" ก่อน (มียอดนำส่งจริง) ถ้าไม่มีจะใช้ไฟล์ดิบ · นำเข้าซ้ำได้ (แทนที่เดือนเดิม) · รอบที่ล็อกในระบบแล้วใช้ข้อมูลระบบแทน</p>' +
       '<div class="row"><label class="btn">' + ic('layers') + ' เลือกโฟลเดอร์ปี<input type="file" id="st-hd" webkitdirectory directory multiple class="sr"></label><label class="btn">' + ic('file') + ' เลือกหลายไฟล์<input type="file" id="st-hf" accept=".xls,.xlsx" multiple class="sr"></label></div><div id="st-hp" class="mt12"></div></div>' : '');
+  notifyStatusLoad();
   loadStaffIndex().then(function (x) { $('#st-si').textContent = 'ปัจจุบัน ' + nf(x.n) + ' คน' + (x.hrmiAt ? ' · นำเข้าล่าสุด ' + thDate(x.hrmiAt) : ''); }).catch(function () { });
   if (!hr) return;
   $('#st-sf').onchange = function () {
@@ -102,8 +104,8 @@ function renderSettings(pg, d) {
   };
   $('#st-save').onclick = function () {
     var btn = this; busy(btn, true);
-    api('saveSettings', { settings: { brokenMode: $('#st-bm').value, alertFactor: $('#st-af').value, alertMinUnits: $('#st-am').value, warnGroups: $('#st-wg').value, hrmiCodeW: $('#st-cw').value, hrmiCodeE: $('#st-ce').value, apiBase: $('#st-ab').value, apiEmpPath: $('#st-ap').value, webUrl: $('#st-web').value, supportPhone: $('#st-ph').value, announcement: $('#st-an').value, maintenance: $('#st-mt').checked ? 'TRUE' : 'FALSE',
-      portalOpen: $('#st-po').checked ? 'TRUE' : 'FALSE', disputeDays: $('#st-dd').value, mailBld: $('#st-mb').checked ? 'TRUE' : 'FALSE', mailHr: $('#st-mh').checked ? 'TRUE' : 'FALSE', bldEmails: $('#st-be').value.trim(), hrEmail: $('#st-he').value.trim(), hrcUrl: $('#st-hc').value.trim() } })
+    api('saveSettings', { settings: Object.assign({ brokenMode: $('#st-bm').value, alertFactor: $('#st-af').value, alertMinUnits: $('#st-am').value, warnGroups: $('#st-wg').value, hrmiCodeW: $('#st-cw').value, hrmiCodeE: $('#st-ce').value, apiBase: $('#st-ab').value, apiEmpPath: $('#st-ap').value, webUrl: $('#st-web').value, supportPhone: $('#st-ph').value, announcement: $('#st-an').value, maintenance: $('#st-mt').checked ? 'TRUE' : 'FALSE',
+      portalOpen: $('#st-po').checked ? 'TRUE' : 'FALSE', disputeDays: $('#st-dd').value, mailBld: $('#st-mb').checked ? 'TRUE' : 'FALSE', mailHr: $('#st-mh').checked ? 'TRUE' : 'FALSE', bldEmails: $('#st-be').value.trim(), hrEmail: $('#st-he').value.trim(), hrcUrl: $('#st-hc').value.trim() }, notifySettingsVals()) })
       .then(function () { busy(btn, false); toast('บันทึกการตั้งค่าแล้ว', 'ok'); return api('bootstrap'); }).then(function (b) { applyBoot(b); route(); }).catch(function (e) { busy(btn, false); errToast(e); });
   };
   $('#st-test').onclick = function () { var btn = this; busy(btn, true); api('testApi', {}).then(function (r) { busy(btn, false); $('#st-tr').innerHTML = '<span class="dot ok"></span> ตอบใน ' + r.ms + ' ms · ' + (r.sample ? esc(r.sample.name) + ' · ' + esc(r.sample.group) : 'ไม่พบข้อมูล') + '<div class="tiny muted">' + esc(r.path) + (r.sample ? '<br>ฟิลด์: ' + esc(r.sample.fields.join(', ')) : '') + '</div>'; }).catch(function (e) { busy(btn, false); $('#st-tr').innerHTML = '<span style="color:var(--danger)">' + esc(e.message) + '</span>'; }); };
@@ -157,3 +159,46 @@ PAGES.audit = function () {
   $('#au-q').onkeydown = function (e) { if (e.key === 'Enter') load(this.value); };
   load('');
 };
+
+/* ---------------------------------------------------------------- 10 พ.ย. 69: แจ้งเตือนผู้พักทางอีเมล */
+var NOTIFY_EV = [['notifyReady', 'READY', 'ยอดประจำเดือนพร้อมให้ตรวจ', 'ส่งทันทีเมื่อฝ่ายอาคารกด "ส่งรอบ" ถึงผู้พักทุกคนที่มียอด'], ['notifyChanged', 'CHANGED', 'ยอดถูกปรับหลังส่งแล้ว', 'ตรวจทุก 10 นาที และตอน HR ล็อกรอบ'],
+  ['notifyDispute', 'DISPUTE', 'ผลการแจ้งยอดผิดพลาด', 'รับเรื่อง · กำลังตรวจ · แก้แล้ว/ยอดถูกต้อง พร้อมคำตอบ'], ['notifyStay', 'STAY', 'ข้อมูลการพักเปลี่ยน', 'ย้ายเข้า/ออก · ลบ · แก้วันที่ · ใส่รหัส · พักการเรียกเก็บ (รอรวม 10 นาที)']];
+function notifySettingsHtml(s, dis) {
+  return '<div class="card mt16" id="st-nt"><div class="ch"><h3>' + ic('mail') + ' แจ้งเตือนผู้พักทางอีเมล</h3><label class="check"><input type="checkbox" id="st-non" ' + (s.notifyOn !== 'FALSE' ? 'checked' : '') + ' ' + dis + '> <b>เปิดใช้งาน</b></label></div>' +
+    '<div class="grid g2"><div><div class="small muted">ส่งอัตโนมัติเมื่อเกิดเรื่อง (ผู้พักปิดรับรายเรื่องได้เองในหน้า "ค่าน้ำไฟของฉัน")</div>' + NOTIFY_EV.map(function (x) {
+      return '<label class="check mt8" style="align-items:flex-start;display:flex"><input type="checkbox" id="st-' + x[0] + '" ' + (s[x[0]] !== 'FALSE' ? 'checked' : '') + ' ' + dis + '><span><b>' + x[2] + '</b><span class="tiny muted" style="display:block">' + x[3] + '</span></span></label>';
+    }).join('') +
+    '<label class="check mt12" style="display:flex"><input type="checkbox" id="st-npr" ' + (s.notifyPrompt !== 'FALSE' ? 'checked' : '') + ' ' + dis + '> ชวนผู้พักที่ยังไม่มีอีเมลให้กรอก (ไม่บังคับ · ยืนยันด้วยรหัส 6 หลัก)</label>' +
+    '<details class="mt12"><summary class="small"><b>ข้อความเพิ่มเติมท้ายแต่ละเรื่อง / ผู้ส่ง</b></summary>' +
+    NOTIFY_EV.map(function (x) { return '<div class="field mt8"><label class="f">' + x[2] + '</label><input class="inp" id="st-nn' + x[1] + '" value="' + esc(s['notifyNote' + x[1]] || '') + '" placeholder="(ไม่ใส่ก็ได้)" ' + dis + '></div>'; }).join('') +
+    '<div class="grid g2"><div class="field"><label class="f">ชื่อผู้ส่ง</label><input class="inp" id="st-nsd" value="' + esc(s.notifySender || '') + '" ' + dis + '></div><div class="field"><label class="f">อีเมลตอบกลับ (ว่าง = ไม่รับตอบ)</label><input class="inp" id="st-nrt" value="' + esc(s.notifyReplyTo || '') + '" ' + dis + '></div></div>' +
+    '<div class="field"><label class="f">ข้อความท้ายอีเมล</label><input class="inp" id="st-nft" value="' + esc(s.notifyFooter || '') + '" ' + dis + '></div>' +
+    '<div class="field"><label class="f">กันโควตาอีเมลรายวันไว้ (ฉบับ)</label><input class="inp" id="st-nrs" inputmode="numeric" value="' + esc(s.notifyReserve || '100') + '" style="max-width:120px" ' + dis + '><div class="help">เผื่อไว้สำหรับรหัสยืนยัน/อีเมลถึงเจ้าหน้าที่ · คิวที่เกินโควตาจะส่งต่อวันถัดไปเอง</div></div></details></div>' +
+    '<div><div id="st-nst">' + loadingHtml('กำลังโหลดสถานะ…') + '</div></div></div></div>';
+}
+function notifySettingsVals() {
+  if (!$('#st-non')) return {};
+  var o = { notifyOn: $('#st-non').checked ? 'TRUE' : 'FALSE', notifyPrompt: $('#st-npr').checked ? 'TRUE' : 'FALSE', notifySender: $('#st-nsd').value.trim(), notifyReplyTo: $('#st-nrt').value.trim(), notifyFooter: $('#st-nft').value.trim(), notifyReserve: $('#st-nrs').value.trim() || '0' };
+  NOTIFY_EV.forEach(function (x) { o[x[0]] = $('#st-' + x[0]).checked ? 'TRUE' : 'FALSE'; o['notifyNote' + x[1]] = $('#st-nn' + x[1]).value.trim(); });
+  return o;
+}
+function notifyStatusLoad() {
+  var box = $('#st-nst'); if (!box) return;
+  api('notifyStatus', { limit: 200 }).then(function (d) {
+    var pct = d.residents ? Math.round(d.withEmail * 100 / d.residents) : 0;
+    box.innerHTML = '<div class="grid g2" style="gap:10px">' +
+      [['ผู้พักที่มีอีเมล', nf(d.withEmail) + ' / ' + nf(d.residents), pct + '%'], ['โควตาเหลือวันนี้', nf(d.quota), 'กันไว้ ' + nf(d.reserve)], ['รอส่ง', nf(d.counts.PENDING || 0), 'ฉบับ'], ['ส่งแล้ว (60 วัน)', nf(d.counts.SENT || 0), 'ข้าม ' + nf(d.counts.SKIPPED || 0) + ' · ผิดพลาด ' + nf(d.counts.FAILED || 0)]]
+        .map(function (k) { return '<div class="card flat" style="padding:10px 12px"><div class="tiny muted">' + k[0] + '</div><b style="font-size:20px">' + k[1] + '</b><div class="tiny muted">' + k[2] + '</div></div>'; }).join('') + '</div>' +
+      (d.trigger ? '' : '<div class="note warn mt8">' + ic('alert') + '<div>ยังไม่ได้ตั้งเวลาส่งคิว — ผู้ดูแลต้อง Run <code>installTriggers</code> ใน Apps Script 1 ครั้ง</div></div>') +
+      '<div class="row mt12">' + (isHR() ? '<button class="btn sm" id="st-nnow">' + ic('send') + ' ส่งคิวตอนนี้</button><button class="btn sm" id="st-ntest">' + ic('mail') + ' ส่งอีเมลตัวอย่าง</button>' : '') + '<button class="btn sm ghost" id="st-nlog">' + ic('history') + ' ดูคิวล่าสุด</button></div>';
+    if ($('#st-nnow')) $('#st-nnow').onclick = function () { var b = this; busy(b, true, 'กำลังส่ง'); api('notifySendNow', {}).then(function (r) { busy(b, false); toast('ส่งแล้ว ' + (r.result.sent || 0) + ' · ข้าม ' + (r.result.skipped || 0) + (r.result.left ? ' · ค้างรอโควตา ' + r.result.left : ''), 'ok', 6000); notifyStatusLoad(); }).catch(function (e) { busy(b, false); errToast(e); }); };
+    if ($('#st-ntest')) $('#st-ntest').onclick = function () { promptBox('ส่งอีเมลตัวอย่าง', 'อีเมลปลายทาง', { value: S.me && S.me.email || '', ok: 'ส่ง' }).then(function (v) { if (v) api('notifyTest', { to: v }).then(function () { toast('ส่งอีเมลตัวอย่างแล้ว', 'ok'); }).catch(errToast); }); };
+    $('#st-nlog').onclick = function () {
+      var TH = { PENDING: ['รอส่ง', 'warn'], SENT: ['ส่งแล้ว', 'ok'], SKIPPED: ['ข้าม', ''], FAILED: ['ผิดพลาด', 'danger'] };
+      modal({ title: 'คิวอีเมลแจ้งผู้พัก (ล่าสุด)', wide: true, body: d.recent.length ? '<div class="tbl-wrap" style="max-height:60vh"><table class="t"><thead><tr><th>เวลา</th><th>ผู้พัก</th><th>เรื่อง</th><th>สถานะ</th><th>ส่งถึง / หมายเหตุ</th></tr></thead><tbody>' + d.recent.map(function (q) {
+        var t = TH[q.status] || [q.status, ''];
+        return '<tr><td class="small nowrap">' + thDate(q.createdAt) + '</td><td>' + esc(q.name) + ' <span class="tiny muted">' + esc(q.rid) + '</span></td><td class="small">' + esc(q.eventTh) + '</td><td><span class="tag ' + t[1] + '">' + t[0] + '</span></td><td class="small">' + esc(q.to || q.error || '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : emptyHtml('ยังไม่มีรายการ', 'mail'), buttons: [{ label: 'ปิด' }] });
+    };
+  }).catch(function (e) { box.innerHTML = '<div class="note danger">' + esc(e.message) + '</div>'; });
+}

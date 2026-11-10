@@ -37,3 +37,8 @@
 @media (max-width: 380px) { .me-who-pick { grid-template-columns: 1fr; } .me-who-pick button { min-height: 0; } }
 .me-step small { font-size: 12px; margin-left: auto; }
 #ml-how button { white-space: nowrap; font-size: 14px; } #ml-rt button { font-size: 13.5px; }
+.me-np { border: 1.5px solid #9fd3f2; background: linear-gradient(180deg, #f2f9fe, #fff); }
+.me-np-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.me-np-f { display: flex; gap: 8px; } .me-np-f .inp { flex: 1; min-width: 0; }
+@media (max-width: 420px) { .me-np-f { flex-direction: column; } }
+.me-nc-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; } .me-nc-list .check { align-items: flex-start; }
